@@ -1,0 +1,19 @@
+{
+  "appId": "com.newsly.app",
+  "appName": "Newsly",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "LIGHT_CONTENT",
+      "backgroundColor": "#ffffff"
+    },
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

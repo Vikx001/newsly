@@ -1,0 +1,46 @@
+{
+  "name": "newsly",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "android": "cap run android",
+    "build:android": "npm run build && cap sync && cap run android",
+    "build:android:release": "npm run build && npx cap sync && npx cap build android"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "axios": "^1.6.2",
+    "lucide-react": "^0.294.0",
+    "fast-xml-parser": "^4.3.2",
+    "url-metadata": "^3.0.0",
+    "@capacitor/core": "^5.5.1",
+    "@capacitor/cli": "^5.5.1",
+    "@capacitor/android": "^5.5.1",
+    "@capacitor/app": "^5.0.6",
+    "@capacitor/haptics": "^5.0.6",
+    "@capacitor/keyboard": "^5.0.6",
+    "@capacitor/status-bar": "^5.0.6"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.1.0",
+    "eslint": "^8.53.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.4",
+    "vite": "^4.5.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "typescript": "^5.2.2"
+  }
+}
