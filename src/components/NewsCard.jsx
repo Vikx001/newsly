@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ExternalLink, Bookmark, BookmarkCheck, Play, Pause, Volume2, Share } from 'lucide-react'
+import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle } from 'lucide-react'
 import { useBookmarks } from '../contexts/BookmarkContext'
 
 const NewsCard = ({ 
@@ -7,11 +7,23 @@ const NewsCard = ({
   onBookmarkChange, 
   onNext, 
   onPrevious, 
+  onShowComments,
   showNavigation = false,
   isFirst = false,
   isLast = false 
 }) => {
   const { isBookmarked, addBookmark, removeBookmark } = useBookmarks()
+  const [comments, setComments] = useState([])
+  
+  // Load comments count for display
+  useEffect(() => {
+    const articleId = article.url || article.title
+    const savedComments = localStorage.getItem(`newsly_comments_${btoa(articleId)}`)
+    if (savedComments) {
+      setComments(JSON.parse(savedComments))
+    }
+  }, [article])
+
   const minSwipeDistance = 50
   const [touchStart, setTouchStart] = useState(null)
   const [touchEnd, setTouchEnd] = useState(null)
@@ -35,7 +47,7 @@ const NewsCard = ({
         speechSynthesis.cancel()
       }
     }
-  }, [])
+  }, [article])
 
   const handleReadAloud = () => {
     if (!speechSynthesis) {
@@ -77,51 +89,31 @@ const NewsCard = ({
 
   // Touch events
   const onTouchStart = (e) => {
-    console.log('Touch start detected', e.targetTouches[0].clientY)
     setTouchEnd(null)
     setTouchStart(e.targetTouches[0].clientY)
   }
 
   const onTouchMove = (e) => {
-    console.log('Touch move detected', e.targetTouches[0].clientY)
     setTouchEnd(e.targetTouches[0].clientY)
   }
 
   const onTouchEnd = () => {
-    console.log('Touch end detected', { touchStart, touchEnd })
-    if (!touchStart || !touchEnd) {
-      console.log('Missing touch coordinates:', { touchStart, touchEnd })
-      return
-    }
+    if (!touchStart || !touchEnd) return
     
     const distance = touchStart - touchEnd
     const isUpSwipe = distance > minSwipeDistance
     const isDownSwipe = distance < -minSwipeDistance
 
-    console.log('Touch swipe analysis:', { 
-      distance, 
-      isUpSwipe, 
-      isDownSwipe, 
-      touchStart, 
-      touchEnd,
-      isFirst,
-      isLast,
-      minSwipeDistance
-    })
-
     if (isUpSwipe && !isLast) {
-      console.log('Triggering onNext from touch')
       onNext?.()
     }
     if (isDownSwipe && !isFirst) {
-      console.log('Triggering onPrevious from touch')
       onPrevious?.()
     }
   }
 
   // Mouse events for desktop testing
   const onMouseDown = (e) => {
-    console.log('Mouse down detected')
     setIsDragging(true)
     setMouseEnd(null)
     setMouseStart(e.clientY)
@@ -129,12 +121,10 @@ const NewsCard = ({
 
   const onMouseMove = (e) => {
     if (!isDragging) return
-    console.log('Mouse move detected')
     setMouseEnd(e.clientY)
   }
 
   const onMouseUp = () => {
-    console.log('Mouse up detected', { mouseStart, mouseEnd, isDragging })
     if (!isDragging || !mouseStart || !mouseEnd) {
       setIsDragging(false)
       return
@@ -144,23 +134,10 @@ const NewsCard = ({
     const isUpSwipe = distance > minSwipeDistance
     const isDownSwipe = distance < -minSwipeDistance
 
-    console.log('Mouse swipe analysis:', { 
-      distance, 
-      isUpSwipe, 
-      isDownSwipe, 
-      mouseStart, 
-      mouseEnd,
-      isFirst,
-      isLast,
-      minSwipeDistance
-    })
-
     if (isUpSwipe && !isLast) {
-      console.log('Triggering onNext from mouse')
       onNext?.()
     }
     if (isDownSwipe && !isFirst) {
-      console.log('Triggering onPrevious from mouse')
       onPrevious?.()
     }
 
@@ -217,7 +194,10 @@ const NewsCard = ({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={() => setIsDragging(false)}
-      style={{ touchAction: 'pan-y', cursor: isDragging ? 'grabbing' : 'grab' }}
+      style={{ 
+        touchAction: 'pan-y', 
+        cursor: isDragging ? 'grabbing' : 'grab'
+      }}
     >
       {/* Source Bar */}
       <div className="px-6 pt-6 pb-3 flex-shrink-0">
@@ -289,6 +269,18 @@ const NewsCard = ({
             </a>
             
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => onShowComments?.(article)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 relative"
+              >
+                <MessageCircle size={20} className="text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" />
+                {comments.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {comments.length}
+                  </span>
+                )}
+              </button>
+              
               <button
                 onClick={handleBookmark}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"

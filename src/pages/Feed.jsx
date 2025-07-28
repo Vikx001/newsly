@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { RefreshCw, Settings, ChevronDown, Sun, Moon, Bookmark } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import NewsCard from '../components/NewsCard'
+import CommentsCard from '../components/CommentsCard'
 import { fetchNews } from '../utils/api'
 import { getStoredGenres } from '../utils/storage'
 
@@ -13,6 +14,8 @@ const Feed = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [selectedArticle, setSelectedArticle] = useState(null)
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
@@ -154,6 +157,16 @@ const Feed = () => {
     }
   }
 
+  const handleShowComments = (article) => {
+    setSelectedArticle(article)
+    setShowComments(true)
+  }
+
+  const handleCloseComments = () => {
+    setShowComments(false)
+    setSelectedArticle(null)
+  }
+
   if (loading) {
     return (
       <div className="h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
@@ -192,7 +205,7 @@ const Feed = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden" style={{fontFamily: 'Newsreader, "Noto Sans", sans-serif'}}>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 relative overflow-hidden">
       {/* Landing Page Style Header */}
       <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f0f2f5] px-10 py-3 bg-white relative z-30">
         <div className="flex items-center gap-4 text-[#111418]">
@@ -239,22 +252,30 @@ const Feed = () => {
       <div className="h-full pt-4 pb-4 px-4 flex items-center justify-center relative z-10">
         <div className="w-full max-w-2xl h-full flex flex-col">
           <div className={`transition-all duration-300 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'}`}>
-            <NewsCard 
-              key={`article-${currentIndex}`}
-              article={articles[currentIndex]}
-              onBookmarkChange={() => {}}
-              onNext={handleNext}
-              onPrevious={handlePrevious}
-              showNavigation={true}
-              isFirst={currentIndex === 0}
-              isLast={currentIndex === articles.length - 1}
-            />
+            {showComments ? (
+              <CommentsCard 
+                article={selectedArticle}
+                onClose={handleCloseComments}
+              />
+            ) : (
+              <NewsCard 
+                key={`article-${currentIndex}`}
+                article={articles[currentIndex]}
+                onBookmarkChange={() => {}}
+                onNext={handleNext}
+                onPrevious={handlePrevious}
+                onShowComments={handleShowComments}
+                showNavigation={true}
+                isFirst={currentIndex === 0}
+                isLast={currentIndex === articles.length - 1}
+              />
+            )}
           </div>
         </div>
       </div>
 
-      {/* Scroll Hint */}
-      {currentIndex < articles.length - 1 && (
+      {/* Scroll Hint - Hide when comments are open */}
+      {!showComments && currentIndex < articles.length - 1 && (
         <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-10">
           <div className="flex flex-col items-center text-gray-400 dark:text-gray-500 animate-bounce">
             <ChevronDown size={20} />

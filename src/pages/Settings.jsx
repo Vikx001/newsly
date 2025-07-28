@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { 
@@ -12,12 +12,57 @@ import {
   MessageSquare, 
   HelpCircle, 
   ChevronRight,
-  LogOut
+  LogOut,
+  Check,
+  X
 } from 'lucide-react'
 
 const Settings = () => {
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
+  const [notifications, setNotifications] = useState(true)
+  const [fontSize, setFontSize] = useState('medium')
+  const [showModal, setShowModal] = useState(null)
+
+  useEffect(() => {
+    // Load settings from localStorage
+    const savedNotifications = localStorage.getItem('newsly_notifications')
+    const savedFontSize = localStorage.getItem('newsly_font_size')
+    
+    if (savedNotifications !== null) {
+      setNotifications(JSON.parse(savedNotifications))
+    }
+    if (savedFontSize) {
+      setFontSize(savedFontSize)
+    }
+  }, [])
+
+  const handleNotificationToggle = () => {
+    const newValue = !notifications
+    setNotifications(newValue)
+    localStorage.setItem('newsly_notifications', JSON.stringify(newValue))
+  }
+
+  const handleFontSizeChange = (size) => {
+    setFontSize(size)
+    localStorage.setItem('newsly_font_size', size)
+    document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px'
+  }
+
+  const handleFeedback = () => {
+    const email = 'feedback@newsly.app'
+    const subject = 'Newsly App Feedback'
+    const body = 'Hi Newsly Team,\n\nI have some feedback about the app:\n\n'
+    window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
+  }
+
+  const handleHelp = () => {
+    setShowModal('help')
+  }
+
+  const handleSubscriptions = () => {
+    setShowModal('subscriptions')
+  }
 
   const settingsItems = [
     {
@@ -27,14 +72,20 @@ const Settings = () => {
           icon: Type,
           title: "Reading Experience",
           description: "Customize your reading experience",
-          action: () => navigate('/under-construction'),
+          action: () => {
+            console.log('Reading Experience clicked')
+            setShowModal('reading')
+          },
           showArrow: true
         },
         {
           icon: theme === 'dark' ? Moon : Sun,
           title: "Theme",
           description: "Choose your preferred app theme",
-          action: toggleTheme,
+          action: () => {
+            console.log('Theme clicked')
+            toggleTheme()
+          },
           value: theme === 'dark' ? 'Dark' : 'Light',
           showArrow: false
         },
@@ -42,8 +93,12 @@ const Settings = () => {
           icon: Bell,
           title: "Notifications",
           description: "Manage your notification settings",
-          action: () => navigate('/under-construction'),
-          showArrow: true
+          action: () => {
+            console.log('Notifications clicked')
+            handleNotificationToggle()
+          },
+          value: notifications ? 'On' : 'Off',
+          showArrow: false
         }
       ]
     },
@@ -54,7 +109,10 @@ const Settings = () => {
           icon: CreditCard,
           title: "Subscriptions",
           description: "Manage your subscriptions",
-          action: () => navigate('/under-construction'),
+          action: () => {
+            console.log('Subscriptions clicked')
+            handleSubscriptions()
+          },
           showArrow: true
         },
         {
@@ -62,6 +120,7 @@ const Settings = () => {
           title: "Clear History",
           description: "Clear your reading history",
           action: () => {
+            console.log('Clear History clicked')
             if (confirm('Are you sure you want to clear your reading history?')) {
               localStorage.removeItem('newsly_reading_history')
               alert('Reading history cleared!')
@@ -73,14 +132,20 @@ const Settings = () => {
           icon: MessageSquare,
           title: "Feedback",
           description: "Provide feedback or report issues",
-          action: () => navigate('/under-construction'),
+          action: () => {
+            console.log('Feedback clicked')
+            handleFeedback()
+          },
           showArrow: true
         },
         {
           icon: HelpCircle,
           title: "Help & Support",
           description: "Access help and support resources",
-          action: () => navigate('/under-construction'),
+          action: () => {
+            console.log('Help clicked')
+            handleHelp()
+          },
           showArrow: true
         }
       ]
@@ -92,6 +157,106 @@ const Settings = () => {
       localStorage.clear()
       navigate('/login')
     }
+  }
+
+  const Modal = ({ type, onClose }) => {
+    if (!type) return null
+
+    const modalContent = {
+      reading: (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Reading Experience</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Font Size</label>
+              <div className="flex gap-2">
+                {['small', 'medium', 'large'].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => handleFontSizeChange(size)}
+                    className={`px-3 py-2 rounded-lg border ${
+                      fontSize === size 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
+                    }`}
+                  >
+                    {size.charAt(0).toUpperCase() + size.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ),
+      help: (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Help & Support</h3>
+          <div className="space-y-4 text-sm">
+            <div>
+              <h4 className="font-medium">How to use Newsly:</h4>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600 dark:text-gray-400">
+                <li>Swipe left/right to navigate between articles</li>
+                <li>Tap bookmark icon to save articles</li>
+                <li>Use theme toggle for dark/light mode</li>
+                <li>Select your preferred news categories</li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium">Contact Support:</h4>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Email: support@newsly.app<br/>
+                Response time: 24-48 hours
+              </p>
+            </div>
+          </div>
+        </div>
+      ),
+      subscriptions: (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Subscriptions</h3>
+          <div className="space-y-4">
+            <div className="p-4 border rounded-lg dark:border-gray-600">
+              <h4 className="font-medium">Free Plan</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Current plan - Unlimited news access
+              </p>
+              <div className="flex items-center mt-2">
+                <Check size={16} className="text-green-600 mr-2" />
+                <span className="text-sm">Active</span>
+              </div>
+            </div>
+            <div className="p-4 border rounded-lg dark:border-gray-600 opacity-60">
+              <h4 className="font-medium">Premium Plan</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Coming soon - Advanced features
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+          <div className="flex items-center justify-between mb-4">
+            {modalContent[type]}
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ml-4"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -192,6 +357,7 @@ const Settings = () => {
           </div>
         </div>
       </div>
+      <Modal type={showModal} onClose={() => setShowModal(null)} />
     </div>
   )
 }
