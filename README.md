@@ -2,11 +2,23 @@
 
 A React-based cross-platform news app that delivers ultra-short (≈60-word) news stories with swipeable cards. Built with React + Capacitor for web and native mobile deployment.
 
-![Newsly Demo](https://via.placeholder.com/800x400/1f2937/ffffff?text=Newsly+Demo)
+
+# Newsly - Some screenshot from google pixel 9 
+
+<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/778f0af9-610b-4ea0-b254-47bd99c671c9" />
+
+<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/0314e6b8-5b49-497c-a961-64f405ebdbc8" />
+
+<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/770c1404-cc7e-40ba-b311-7db3e2a899ac" />
+
+<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/fa74bd07-b4e1-40d0-ae1c-fca5aa100dd5" />
+
+<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/a74cddd9-1cb7-4c06-8a3b-3a5d5091b643" />
+
 
 ## 🚀 Features
 
-- **📱 Cross-Platform**: Web, Android, and iOS support
+- **📱 Cross-Platform**: Web, Android, working on ios.
 - **🎯 Genre Selection**: 8 news categories (Technology, World, Business, Sports, Science, Health, Entertainment, Politics)
 - **📰 Ultra-Short Summaries**: News stories condensed to ~60 words
 - **👆 Swipeable Interface**: Navigate with swipe gestures (mobile) or arrow keys (desktop)
