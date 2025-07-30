@@ -28,7 +28,17 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 - **📱 Responsive Design**: Works on all devices
 - **🔄 Real-time News**: Fetches latest news from Google News RSS
 
-## �️ Architecture Overview
+## 📱 Latest Updates (29/07/2025)
+- ✅ Fixed mobile external URL navigation
+- ✅ TikTok-style swipe navigation
+- ✅ Dark/Light theme toggle
+- ✅ Comments system with local storage
+- ✅ Responsive design for mobile/desktop
+- ✅ Share functionality
+- ✅ Capacitor integration for mobile apps
+- ✅ Mobile "Read More" button now works properly
+
+## 🏗️ Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
