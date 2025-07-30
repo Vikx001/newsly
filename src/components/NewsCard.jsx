@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle } from 'lucide-react'
 import { useBookmarks } from '../contexts/BookmarkContext'
+import { Browser } from '@capacitor/browser'
+import { Capacitor } from '@capacitor/core'
 
 const NewsCard = ({ 
   article, 
@@ -182,6 +184,27 @@ const NewsCard = ({
     if (diffInHours < 1) return 'now'
     if (diffInHours < 24) return `${diffInHours}h`
     return `${Math.floor(diffInHours / 24)}d`
+  }
+
+  const handleReadMore = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        // Use Capacitor Browser for mobile
+        await Browser.open({
+          url: article.url,
+          windowName: '_blank',
+          toolbarColor: '#1f2937',
+          presentationStyle: 'popover'
+        })
+      } else {
+        // Use window.open for web
+        window.open(article.url, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      console.error('Error opening URL:', error)
+      // Fallback: try window.open
+      window.open(article.url, '_blank', 'noopener,noreferrer')
+    }
   }
 
   return (

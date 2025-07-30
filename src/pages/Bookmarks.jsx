@@ -3,11 +3,31 @@ import { useNavigate } from 'react-router-dom'
 import { useBookmarks } from '../contexts/BookmarkContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Sun, Moon } from 'lucide-react'
+import { Browser } from '@capacitor/browser'
+import { Capacitor } from '@capacitor/core'
 
 function Bookmarks() {
   const { bookmarks, removeBookmark } = useBookmarks()
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
+
+  const handleReadMore = async (article) => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({
+          url: article.url,
+          windowName: '_blank',
+          toolbarColor: '#1f2937',
+          presentationStyle: 'popover'
+        })
+      } else {
+        window.open(article.url, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      console.error('Error opening URL:', error)
+      window.open(article.url, '_blank', 'noopener,noreferrer')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -67,7 +87,7 @@ function Bookmarks() {
                       </div>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => window.open(article.url, '_blank')}
+                          onClick={() => handleReadMore(article)}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
                         >
                           Read More

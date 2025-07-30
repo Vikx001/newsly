@@ -3,17 +3,19 @@
   "appName": "Newsly",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https",
-    "cleartext": true,
-    "allowNavigation": ["*"]
+    "androidScheme": "https"
   },
   "plugins": {
-    "StatusBar": {
-      "style": "LIGHT_CONTENT",
-      "backgroundColor": "#ffffff"
+    "Browser": {
+      "windowName": "_blank"
     },
-    "CapacitorHttp": {
-      "enabled": true
+    "App": {
+      "launchUrl": "https://newsly.app"
     }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
   }
 }

@@ -28,7 +28,7 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 - **📱 Responsive Design**: Works on all devices
 - **🔄 Real-time News**: Fetches latest news from Google News RSS
 
-## 🏗️ Architecture Overview
+## �️ Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
