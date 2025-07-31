@@ -1,72 +1,56 @@
-const BOOKMARKS_KEY = 'newsly_bookmarks'
-const GENRES_KEY = 'newsly_genres'
-
-export const getStoredBookmarks = () => {
-  try {
-    const stored = localStorage.getItem(BOOKMARKS_KEY)
-    return stored ? JSON.parse(stored) : []
-  } catch (error) {
-    console.error('Error reading bookmarks from storage:', error)
-    return []
-  }
-}
-
-export const addBookmark = (article) => {
-  try {
-    const bookmarks = getStoredBookmarks()
-    const exists = bookmarks.find(bookmark => bookmark.url === article.url)
-    
-    if (!exists) {
-      const newBookmarks = [...bookmarks, article]
-      localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(newBookmarks))
-      return newBookmarks
-    }
-    
-    return bookmarks
-  } catch (error) {
-    console.error('Error adding bookmark:', error)
-    return getStoredBookmarks()
-  }
-}
-
-export const removeBookmark = (articleUrl) => {
-  try {
-    const bookmarks = getStoredBookmarks()
-    const newBookmarks = bookmarks.filter(bookmark => bookmark.url !== articleUrl)
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(newBookmarks))
-    return newBookmarks
-  } catch (error) {
-    console.error('Error removing bookmark:', error)
-    return getStoredBookmarks()
-  }
-}
-
+// Genre storage
 export const getStoredGenres = () => {
   try {
-    const stored = localStorage.getItem(GENRES_KEY)
+    const stored = localStorage.getItem('newsly_genres')
     return stored ? JSON.parse(stored) : ['technology', 'business', 'sports']
-  } catch (error) {
-    console.error('Error reading genres from storage:', error)
+  } catch {
     return ['technology', 'business', 'sports']
   }
 }
 
 export const setStoredGenres = (genres) => {
+  localStorage.setItem('newsly_genres', JSON.stringify(genres))
+}
+
+// Country storage
+export const getStoredCountry = () => {
+  return localStorage.getItem('newsly_country') || 'global'
+}
+
+export const setStoredCountry = (countryCode) => {
+  localStorage.setItem('newsly_country', countryCode)
+}
+
+// Bookmark storage
+export const getStoredBookmarks = () => {
   try {
-    localStorage.setItem(GENRES_KEY, JSON.stringify(genres))
-    return genres
-  } catch (error) {
-    console.error('Error saving genres to storage:', error)
-    return getStoredGenres()
+    const stored = localStorage.getItem('newsly_bookmarks')
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
   }
 }
 
-export const isBookmarked = (articleUrl) => {
-  try {
-    const bookmarks = getStoredBookmarks()
-    return bookmarks.some(bookmark => bookmark.url === articleUrl)
-  } catch (error) {
-    console.error('Error checking bookmark status:', error)
-    return false
+export const setStoredBookmarks = (bookmarks) => {
+  localStorage.setItem('newsly_bookmarks', JSON.stringify(bookmarks))
+}
+
+export const addBookmark = (article) => {
+  const bookmarks = getStoredBookmarks()
+  const exists = bookmarks.find(b => b.url === article.url)
+  if (!exists) {
+    bookmarks.push(article)
+    setStoredBookmarks(bookmarks)
   }
+}
+
+export const removeBookmark = (articleUrl) => {
+  const bookmarks = getStoredBookmarks()
+  const filtered = bookmarks.filter(b => b.url !== articleUrl)
+  setStoredBookmarks(filtered)
+}
+
+export const isBookmarked = (articleUrl) => {
+  const bookmarks = getStoredBookmarks()
+  return bookmarks.some(b => b.url === articleUrl)
 }

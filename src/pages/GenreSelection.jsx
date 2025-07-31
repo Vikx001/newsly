@@ -2,21 +2,11 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Cpu, Building, Trophy, Beaker, Heart, Film, Megaphone, Newspaper, Globe } from 'lucide-react'
 import { setStoredGenres } from '../utils/storage'
+import { GENRES } from '../utils/genres'
 
 const GenreSelection = () => {
   const [selectedGenres, setSelectedGenres] = useState(['technology', 'business', 'sports'])
   const navigate = useNavigate()
-
-  const genres = [
-    { id: 'technology', name: 'Technology', icon: Cpu },
-    { id: 'business', name: 'Business', icon: Building },
-    { id: 'sports', name: 'Sports', icon: Trophy },
-    { id: 'science', name: 'Science', icon: Beaker },
-    { id: 'health', name: 'Health', icon: Heart },
-    { id: 'entertainment', name: 'Entertainment', icon: Film },
-    { id: 'politics', name: 'Politics', icon: Megaphone },
-    { id: 'general', name: 'General', icon: Newspaper }
-  ]
 
   const toggleGenre = (genreId) => {
     setSelectedGenres(prev => 
@@ -75,7 +65,7 @@ const GenreSelection = () => {
             <h2 className="text-[#121417] tracking-light text-[28px] font-bold leading-tight px-4 text-center pb-3 pt-5">Choose Your Interests</h2>
             
             <div className="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-4">
-              {genres.map((genre) => {
+              {GENRES.map((genre) => {
                 const Icon = genre.icon
                 const isSelected = selectedGenres.includes(genre.id)
                 return (

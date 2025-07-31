@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle } from 'lucide-react'
+import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle, Languages } from 'lucide-react'
 import { useBookmarks } from '../contexts/BookmarkContext'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
+import { CapacitorHttp } from '@capacitor/core'
 
 const NewsCard = ({ 
   article, 
@@ -16,6 +17,9 @@ const NewsCard = ({
 }) => {
   const { isBookmarked, addBookmark, removeBookmark } = useBookmarks()
   const [comments, setComments] = useState([])
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [translatedContent, setTranslatedContent] = useState(null)
+  const [showOriginal, setShowOriginal] = useState(true)
   
   // Load comments count for display
   useEffect(() => {
@@ -207,6 +211,153 @@ const NewsCard = ({
     }
   }
 
+  const handleTranslate = async () => {
+    if (translatedContent && !showOriginal) {
+      setShowOriginal(true)
+      return
+    }
+
+    if (translatedContent && showOriginal) {
+      setShowOriginal(false)
+      return
+    }
+
+    setIsTranslating(true)
+    
+    try {
+      const textToTranslate = `${article.title}\n\n${article.description}`
+      let translatedText = null
+      const isNative = Capacitor.isNativePlatform()
+      
+      console.log('Translation attempt - isNative:', isNative)
+      
+      // Try LibreTranslate first (better quality)
+      try {
+        if (isNative) {
+          const response = await CapacitorHttp.post({
+            url: 'https://libretranslate.de/translate',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            data: {
+              q: textToTranslate,
+              source: 'auto',
+              target: 'en',
+              format: 'text'
+            }
+          })
+          
+          console.log('LibreTranslate mobile response:', response)
+          if (response.status === 200 && response.data && response.data.translatedText) {
+            translatedText = response.data.translatedText
+          }
+        } else {
+          const response = await fetch('https://libretranslate.de/translate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              q: textToTranslate,
+              source: 'auto',
+              target: 'en',
+              format: 'text'
+            })
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            translatedText = data.translatedText
+          }
+        }
+      } catch (error) {
+        console.log('LibreTranslate failed:', error)
+      }
+      
+      // Fallback: Try Google Translate via proxy
+      if (!translatedText) {
+        try {
+          const googleUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(textToTranslate)}`
+          
+          if (isNative) {
+            const response = await CapacitorHttp.get({
+              url: googleUrl,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0)'
+              }
+            })
+            
+            console.log('Google mobile response:', response)
+            if (response.status === 200 && response.data && response.data[0]) {
+              translatedText = response.data[0].map(item => item[0]).join('')
+            }
+          } else {
+            const response = await fetch(googleUrl)
+            const data = await response.json()
+            
+            if (data && data[0]) {
+              translatedText = data[0].map(item => item[0]).join('')
+            }
+          }
+        } catch (error) {
+          console.log('Google Translate failed:', error)
+        }
+      }
+      
+      // Final fallback: Lingva Translate
+      if (!translatedText) {
+        try {
+          const lingvaUrl = `https://lingva.ml/api/v1/auto/en/${encodeURIComponent(textToTranslate)}`
+          
+          if (isNative) {
+            const response = await CapacitorHttp.get({
+              url: lingvaUrl,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; NewsBot/1.0)'
+              }
+            })
+            
+            console.log('Lingva mobile response:', response)
+            if (response.status === 200 && response.data && response.data.translation) {
+              translatedText = response.data.translation
+            }
+          } else {
+            const response = await fetch(lingvaUrl)
+            const data = await response.json()
+            translatedText = data.translation
+          }
+        } catch (error) {
+          console.log('Lingva failed:', error)
+        }
+      }
+      
+      if (translatedText) {
+        // Split back into title and description
+        const parts = translatedText.split('\n\n')
+        const translatedTitle = parts[0] || article.title
+        const translatedDescription = parts[1] || parts[0] || article.description
+        
+        setTranslatedContent({
+          title: translatedTitle,
+          description: translatedDescription
+        })
+        setShowOriginal(false)
+        console.log('Translation successful!')
+      } else {
+        console.log('All translation services failed')
+        alert('Translation service temporarily unavailable. Please try again later.')
+      }
+      
+    } catch (error) {
+      console.error('Translation failed:', error)
+      alert('Translation failed. Please check your internet connection.')
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
+  const displayContent = showOriginal ? article : (translatedContent || article)
+
   return (
     <article 
       className="h-full bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden flex flex-col select-none relative z-20"
@@ -267,13 +418,18 @@ const NewsCard = ({
       <div className="px-6 flex-1 flex flex-col">
         {/* Headline */}
         <h1 className="text-xl md:text-2xl font-bold leading-tight text-gray-900 dark:text-gray-100 mb-4">
-          {article.title}
+          {displayContent.title}
+          {!showOriginal && (
+            <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded">
+              Translated
+            </span>
+          )}
         </h1>
-        
+
         {/* 60-Word Summary */}
         <div className="flex-1 flex items-start">
           <p className="text-gray-600 dark:text-gray-300 text-base leading-relaxed">
-            {article.description}
+            {displayContent.description}
           </p>
         </div>
       </div>
@@ -292,6 +448,20 @@ const NewsCard = ({
             </a>
             
             <div className="flex items-center gap-4">
+              <button
+                onClick={handleTranslate}
+                disabled={isTranslating}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                title={showOriginal ? "Translate to English" : "Show Original"}
+              >
+                <Languages 
+                  size={20} 
+                  className={`${isTranslating ? 'animate-spin' : ''} ${
+                    !showOriginal ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+                  }`} 
+                />
+              </button>
+              
               <button
                 onClick={() => onShowComments?.(article)}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 relative"

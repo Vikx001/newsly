@@ -1,49 +1,149 @@
 import { XMLParser } from 'fast-xml-parser'
+import countryLanguage from 'country-language'
+import countryList from 'react-select-country-list'
 
 // Mock API for development - fetches Google News RSS feeds directly from frontend
-export const fetchGoogleNews = async (categories) => {
-  const categoryUrls = {
-    'technology': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'general': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'business': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'sports': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'science': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y0RvU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'health': 'https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en',
-    'entertainment': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'politics': 'https://news.google.com/rss/search?q=politics&hl=en-US&gl=US&ceid=US:en'
+export const fetchGoogleNews = async (categories, country = 'global') => {
+  console.log('🌍 fetchGoogleNews called with:', { categories, country })
+  
+  const getCategoryUrlsForCountry = (country) => {
+    // Dynamic country parameter generation using library
+    let countryParam
+    
+    if (country === 'global') {
+      countryParam = 'hl=en-US&gl=US&ceid=US:en'
+    } else {
+      try {
+        // Get primary language for the country
+        const languages = countryLanguage.getCountryLanguages(country.toUpperCase())
+        const primaryLang = languages && languages[0] ? languages[0] : null
+        
+        const upperCountry = country.toUpperCase()
+        
+        if (primaryLang && primaryLang.iso639_1) {
+          // Use the primary language of the country
+          const langCode = `${primaryLang.iso639_1}-${upperCountry}`
+          countryParam = `hl=${langCode}&gl=${upperCountry}&ceid=${upperCountry}:${primaryLang.iso639_1}`
+        } else {
+          // Fallback to English for that country
+          countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
+        }
+      } catch (error) {
+        console.log(`Language lookup failed for ${country}, using English fallback`)
+        const upperCountry = country.toUpperCase()
+        countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
+      }
+    }
+    
+    return {
+      'technology': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+      'business': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+      'sports': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+      'science': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y0RvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+      'health': `https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?${countryParam}`,
+      'entertainment': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+      'general': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`
+    }
   }
 
+  const categoryUrls = getCategoryUrlsForCountry(country)
   const allArticles = []
 
   for (const category of categories) {
     try {
       const url = categoryUrls[category] || categoryUrls['general']
-      console.log(`Fetching ${category} news from Google News...`)
+      console.log(`Fetching ${category} news from Google News for ${country}...`)
+      console.log('URL:', url)
       
-      // Use a CORS proxy for development
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-      
-      const response = await fetch(proxyUrl)
-      const data = await response.json()
-      
-      if (data.contents) {
-        const articles = parseGoogleNewsXML(data.contents, category)
-        console.log(`Found ${articles.length} articles for ${category}`)
+      // Try multiple CORS proxies
+      const corsProxies = [
+        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
+      ]
+
+      let proxyIndex = 0
+      const response = await fetch(corsProxies[proxyIndex](url), {
+        timeout: 10000
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      let xmlContent
+      const contentType = response.headers.get('content-type') || ''
+
+      if (contentType.includes('application/json')) {
+        const data = await response.json()
+        xmlContent = data.contents || data
+      } else {
+        xmlContent = await response.text()
+      }
+
+      if (xmlContent) {
+        const articles = parseGoogleNewsXML(xmlContent, category, country)
+        console.log(`Found ${articles.length} articles for ${category} in ${country}`)
         allArticles.push(...articles)
       }
     } catch (error) {
-      console.error(`Error fetching ${category}:`, error)
+      console.error(`Error fetching ${category} for ${country}:`, error)
     }
   }
 
-  console.log(`Total articles fetched: ${allArticles.length}`)
-  return {
-    articles: allArticles, // No limit
-    total: allArticles.length
-  }
+  console.log(`Total articles fetched for ${country}:`, allArticles.length)
+  return { articles: allArticles }
 }
 
-export const parseGoogleNewsXML = (xmlText, category) => {
+// Extract actual images from Google News RSS or use country flag dynamically
+const getNewsImage = (description, country, category, title) => {
+  // First try to extract real images from Google News description
+  const imagePatterns = [
+    // Google News specific image patterns
+    /<img[^>]+src="(https:\/\/lh3\.googleusercontent\.com[^"]+)"/i,
+    /<img[^>]+src="(https:\/\/encrypted-tbn[^"]+)"/i,
+    /<img[^>]+src="(https:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/i,
+    // Any image in description
+    /src="([^"]*\.(?:jpg|jpeg|png|gif|webp|avif)[^"]*)"/i
+  ]
+
+  for (const pattern of imagePatterns) {
+    const match = description.match(pattern)
+    if (match && match[1]) {
+      let imageUrl = match[1].replace(/&amp;/g, '&')
+      // Skip tiny images and icons
+      if (!imageUrl.includes('1x1') && 
+          !imageUrl.includes('16x16') && 
+          !imageUrl.includes('favicon') &&
+          imageUrl.length > 50) {
+        console.log('✅ Found real news image:', imageUrl)
+        return imageUrl
+      }
+    }
+  }
+
+  // Fallback: Use country flag dynamically
+  if (country === 'global') {
+    console.log('🌍 Using global/UN flag as fallback')
+    return 'https://flagcdn.com/w320/un.png'
+  }
+
+  // Get country code from react-select-country-list
+  const countries = countryList().getData()
+  const countryData = countries.find(c => c.value.toLowerCase() === country.toLowerCase())
+  
+  if (countryData) {
+    const flagUrl = `https://flagcdn.com/w320/${countryData.value.toLowerCase()}.png`
+    console.log(`🏳️ Using ${countryData.label} flag as fallback:`, flagUrl)
+    return flagUrl
+  }
+
+  // Ultimate fallback
+  console.log('⚠️ Country not found, using global flag')
+  return 'https://flagcdn.com/w320/un.png'
+}
+
+export const parseGoogleNewsXML = (xmlText, category, country = 'global') => {
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "@_",
@@ -57,22 +157,19 @@ export const parseGoogleNewsXML = (xmlText, category) => {
     const result = parser.parse(xmlText)
     const items = result.rss?.channel?.item || []
     
-    const articles = items.map(item => {
-      // Extract title
+    const articles = items.map((item, index) => {
       let title = item.title || ''
       if (typeof title === 'object' && title['#text']) {
         title = title['#text']
       }
       
-      // Extract description
       let description = item.description || ''
       if (typeof description === 'object' && description['#text']) {
         description = description['#text']
       }
       
-      // Clean description - remove HTML tags and decode entities
       let cleanDescription = description
-        .replace(/<[^>]*>/g, '') // Remove HTML tags
+        .replace(/<[^>]*>/g, '')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
         .replace(/&amp;/g, '&')
@@ -81,67 +178,17 @@ export const parseGoogleNewsXML = (xmlText, category) => {
         .replace(/&nbsp;/g, ' ')
         .trim()
 
-      // Extract image from description HTML with comprehensive patterns
-      let imageUrl = null
+      // Get real news image or country flag dynamically
+      const imageUrl = getNewsImage(description, country, category, title)
 
-      // Try to extract from Google News specific patterns first
-      const googleNewsImgPatterns = [
-        // Google News specific image patterns
-        /<img[^>]+src="(https:\/\/lh3\.googleusercontent\.com[^"]+)"/i,
-        /<img[^>]+src="(https:\/\/encrypted-tbn[^"]+)"/i,
-        // Standard image patterns
-        /<img[^>]+src="([^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/i,
-        /<img[^>]+src='([^']+\.(?:jpg|jpeg|png|gif|webp)[^']*)'/i,
-        // Any image source
-        /<img[^>]*src=["']([^"']+)["'][^>]*>/i,
-        // Background image patterns
-        /background-image:\s*url\(["']?([^"')]+)["']?\)/i
-      ]
-
-      for (const pattern of googleNewsImgPatterns) {
-        const match = description.match(pattern)
-        if (match && match[1]) {
-          let url = match[1]
-          // Clean up the URL
-          url = url.replace(/&amp;/g, '&').replace(/&quot;/g, '"')
-          
-          // Skip tiny images and icons
-          if (!url.includes('1x1') && 
-              !url.includes('16x16') && 
-              !url.includes('32x32') && 
-              !url.includes('favicon') &&
-              !url.includes('logo') &&
-              url.length > 20) {
-            imageUrl = url
-            break
-          }
-        }
-      }
-
-      // If no image found, try to fetch from article URL using a service
-      if (!imageUrl && (item.link || item.guid)) {
-        // Use a meta tag extraction service for better images
-        const articleUrl = item.link || item.guid
-        try {
-          // Use a free meta tag extraction service
-          imageUrl = `https://api.microlink.io/?url=${encodeURIComponent(articleUrl)}&screenshot=true&meta=false&embed=screenshot.url`
-        } catch (e) {
-          // Fallback to another service
-          imageUrl = `https://image.thum.io/get/width/400/crop/600/${encodeURIComponent(articleUrl)}`
-        }
-      }
-
-      // Create a proper summary
       const sentences = cleanDescription.split(/[.!?]+/).filter(s => s.trim().length > 20)
       let summary = sentences.slice(0, 3).join('. ').trim()
       if (summary && !summary.endsWith('.')) summary += '.'
       
-      // Fallback if no good summary
       if (!summary || summary.length < 80) {
         summary = cleanDescription.substring(0, 200) + (cleanDescription.length > 200 ? '...' : '')
       }
 
-      // Skip articles with poor content
       if (!title || title.includes('[Removed]') || !summary || summary.length < 50) {
         return null
       }
@@ -158,39 +205,13 @@ export const parseGoogleNewsXML = (xmlText, category) => {
         category: category,
         author: item['dc:creator'] || null
       }
-    }).filter(Boolean) // Remove null entries
+    })
 
-    return articles.slice(0, 10) // Limit per category
+    return articles.filter(Boolean).slice(0, 10)
   } catch (error) {
     console.error('Error parsing XML:', error)
     return []
   }
 }
 
-// Improve image extraction with multiple fallback strategies
-const getArticleImage = async (articleUrl, title) => {
-  try {
-    // Try to extract image from Google News URL structure
-    const googleImageMatch = articleUrl.match(/imgurl=([^&]+)/)
-    if (googleImageMatch) {
-      return decodeURIComponent(googleImageMatch[1])
-    }
-    
-    // Fallback: Generate a placeholder based on category
-    const category = getCurrentCategory() // You'll need to pass this
-    const placeholders = {
-      technology: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop',
-      business: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
-      sports: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&h=300&fit=crop',
-      science: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=400&h=300&fit=crop',
-      health: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop',
-      entertainment: 'https://images.unsplash.com/photo-1489599904472-84b0e19e8b0b?w=400&h=300&fit=crop',
-      general: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=400&h=300&fit=crop'
-    }
-    
-    return placeholders[category] || placeholders.general
-  } catch (error) {
-    console.log('Image extraction failed:', error)
-    return null
-  }
-}
+
