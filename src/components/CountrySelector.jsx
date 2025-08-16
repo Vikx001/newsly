@@ -15,7 +15,6 @@ const CountrySelector = ({ selectedCountry, onCountryChange, className = "" }) =
   const options = useMemo(() => {
     const countries = countryList().getData()
     
-    // Add global option at the top
     return [
       { 
         value: 'global', 
@@ -66,12 +65,12 @@ const CountrySelector = ({ selectedCountry, onCountryChange, className = "" }) =
       border: '1px solid #dde0e4',
       borderRadius: '0.5rem',
       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-      zIndex: 9999,
-      position: 'absolute' // Ensure proper positioning
+      zIndex: 9999
     }),
     menuPortal: (provided) => ({
       ...provided,
-      zIndex: 9999
+      zIndex: 9999,
+      position: 'fixed'
     }),
     menuList: (provided) => ({
       ...provided,
@@ -87,6 +86,8 @@ const CountrySelector = ({ selectedCountry, onCountryChange, className = "" }) =
 
   const selectedOption = options.find(option => option.value === selectedCountry)
 
+  const portalTarget = typeof document !== 'undefined' ? document.body : null
+
   return (
     <div className={`min-w-[180px] ${className}`}>
       <Select
@@ -101,7 +102,8 @@ const CountrySelector = ({ selectedCountry, onCountryChange, className = "" }) =
             <ChevronDown size={16} className="mr-2 text-gray-500" />
           )
         }}
-        menuPortalTarget={null} // Remove portal to fix positioning
+        menuPortalTarget={portalTarget}
+        menuPosition="fixed"
         menuPlacement="auto"
         noOptionsMessage={() => "No countries found"}
       />

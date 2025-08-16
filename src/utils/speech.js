@@ -11,7 +11,6 @@ export class SpeechManager {
       throw new Error('Speech synthesis not supported')
     }
 
-    // Cancel any ongoing speech
     this.stop()
 
     const utterance = new SpeechSynthesisUtterance(text)
@@ -22,7 +21,6 @@ export class SpeechManager {
     utterance.volume = options.volume || 1
     utterance.voice = options.voice || null
 
-    // Set up event handlers
     if (options.onStart) utterance.onstart = options.onStart
     if (options.onEnd) utterance.onend = options.onEnd
     if (options.onError) utterance.onerror = options.onError

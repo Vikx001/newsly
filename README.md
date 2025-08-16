@@ -2,7 +2,7 @@
 
 A React-based cross-platform news app that delivers ultra-short (≈60-word) news stories with swipeable cards. Built with React + Capacitor for web and native mobile deployment.
 
-# Newsly - Some screenshot from google pixel 9 
+# Newsly - Some screenshot from google pixel 9
 
 <img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/778f0af9-610b-4ea0-b254-47bd99c671c9" />
 
@@ -34,6 +34,10 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 
 | Date | Version | Updates |
 |------|---------|---------|
+| **16/08/2025** | v2.3.0 | 🎨 **Layout Refresh & Settings Expansion**<br/>• New compact header in Feed with country selector, refresh, sort (Personalized/Latest), theme and settings buttons<br/>• “Swipe up” affordance and smoother card transitions<br/>• Read Aloud controls and keyboard shortcuts (Arrow Up/Down, Ctrl+Space)<br/>• Community Bias features: analysis panel + vote sheet with local persistence<br/>• Article translation with LibreTranslate/Lingva fallback<br/>• Settings additions: Theme, Notifications, Reading font size, Hide paywalled, Default sort, Bookmarks, Subscriptions (stub), Clear history, Feedback, Help & Support, Logout |
+
+| **16/08/2025** | v2.2.0 | 🖼️ **Smart Image Resolver & Reliability**<br/>• Prefer original article URL (bypass Google News redirect)<br/>• Extract images from OG/Twitter/JSON‑LD/srcset and follow canonical links<br/>• Openverse photograph fallback when no image is found<br/>• Web image proxying for reliability (Weserv)<br/>• Improved handling of placeholder/flag images |
+
 | **30/01/2025** | v2.1.0 | 🌍 **Country Selection Feature**<br/>• Added 15+ country support with flag indicators<br/>• Auto-refresh on country change<br/>• Visual loading states for country selector<br/>• Improved refresh button feedback |
 | **29/01/2025** | v2.0.0 | 🔧 **Major UI/UX Improvements**<br/>• Fixed mobile external URL navigation<br/>• TikTok-style swipe navigation<br/>• Dark/Light theme toggle<br/>• Comments system with local storage<br/>• Responsive design for mobile/desktop<br/>• Share functionality<br/>• Capacitor integration for mobile apps<br/>• Mobile "Read More" button fixes |
 | **28/01/2025** | v1.5.0 | 📱 **Mobile Optimization**<br/>• Enhanced swipe gestures<br/>• Improved touch responsiveness<br/>• Better mobile UI components |
@@ -203,9 +207,9 @@ const getCountrySpecificUrl = (category, country) => {
     'business': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB',
     // ... more categories
   };
-  
-  return country === 'global' 
-    ? baseUrls[category] 
+
+  return country === 'global'
+    ? baseUrls[category]
     : `${baseUrls[category]}?hl=${country}&gl=${country.toUpperCase()}`;
 };
 ```

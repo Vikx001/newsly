@@ -55,36 +55,42 @@ export const fetchGoogleNews = async (categories, country = 'global') => {
       console.log(`Fetching ${category} news from Google News for ${country}...`)
       console.log('URL:', url)
       
-      // Try multiple CORS proxies
-      const corsProxies = [
-        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-        (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
+      // Try multiple CORS proxies sequentially until one works
+      const proxyBuilders = [
+        (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+        (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+        // AllOrigins raw (simpler than JSON wrapper)
+        (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
       ]
 
-      let proxyIndex = 0
-      const response = await fetch(corsProxies[proxyIndex](url), {
-        timeout: 10000
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      let xmlContent
-      const contentType = response.headers.get('content-type') || ''
-
-      if (contentType.includes('application/json')) {
-        const data = await response.json()
-        xmlContent = data.contents || data
-      } else {
-        xmlContent = await response.text()
+      let xmlContent = null
+      let lastError = null
+      for (const build of proxyBuilders) {
+        const proxied = build(url)
+        try {
+          const resp = await fetch(proxied, { cache: 'no-store' })
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+          const ct = resp.headers.get('content-type') || ''
+          if (ct.includes('application/json')) {
+            // Some proxies still return JSON; handle both
+            const data = await resp.json()
+            xmlContent = data.contents || data
+          } else {
+            xmlContent = await resp.text()
+          }
+          if (xmlContent) break
+        } catch (e) {
+          lastError = e
+          console.warn(`Proxy failed ${proxied}:`, e?.message || e)
+        }
       }
 
       if (xmlContent) {
         const articles = parseGoogleNewsXML(xmlContent, category, country)
         console.log(`Found ${articles.length} articles for ${category} in ${country}`)
         allArticles.push(...articles)
+      } else {
+        console.error(`All proxies failed for ${category} (${country}). Last error:`, lastError?.message || lastError)
       }
     } catch (error) {
       console.error(`Error fetching ${category} for ${country}:`, error)
@@ -96,50 +102,71 @@ export const fetchGoogleNews = async (categories, country = 'global') => {
 }
 
 // Extract actual images from Google News RSS or use country flag dynamically
-const getNewsImage = (description, country, category, title) => {
-  // First try to extract real images from Google News description
+const getNewsImage = (description, country, category, title, item) => {
+  // 1) Check common RSS media fields first (more reliable than parsing HTML)
+  try {
+    const candidates = []
+    const pushFrom = (entry) => {
+      if (!entry) return
+      const arr = Array.isArray(entry) ? entry : [entry]
+      arr.forEach(e => {
+        const url = e?.['@_url'] || e?.url
+        const type = e?.['@_type'] || e?.type || ''
+        if (url && (!type || String(type).startsWith('image/'))) {
+          candidates.push(String(url))
+        }
+      })
+    }
+    pushFrom(item?.['media:content'])
+    pushFrom(item?.['media:thumbnail'])
+    pushFrom(item?.enclosure)
+
+    for (const u of candidates) {
+      const cleaned = u.replace(/&amp;/g, '&')
+      if (
+        /\.(jpg|jpeg|png|gif|webp|avif)(?:[?#].*)?$/i.test(cleaned) ||
+        cleaned.startsWith('https://lh3.googleusercontent.com') ||
+        cleaned.startsWith('https://encrypted-tbn')
+      ) {
+        return cleaned
+      }
+    }
+  } catch {}
+
+  // 2) Fallback: extract from HTML in description
   const imagePatterns = [
-    // Google News specific image patterns
     /<img[^>]+src="(https:\/\/lh3\.googleusercontent\.com[^"]+)"/i,
     /<img[^>]+src="(https:\/\/encrypted-tbn[^"]+)"/i,
     /<img[^>]+src="(https:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp)[^"]*)"/i,
-    // Any image in description
     /src="([^"]*\.(?:jpg|jpeg|png|gif|webp|avif)[^"]*)"/i
   ]
 
   for (const pattern of imagePatterns) {
-    const match = description.match(pattern)
+    const match = description?.match(pattern)
     if (match && match[1]) {
       let imageUrl = match[1].replace(/&amp;/g, '&')
-      // Skip tiny images and icons
-      if (!imageUrl.includes('1x1') && 
-          !imageUrl.includes('16x16') && 
-          !imageUrl.includes('favicon') &&
-          imageUrl.length > 50) {
-        console.log('✅ Found real news image:', imageUrl)
+      if (
+        !imageUrl.includes('1x1') &&
+        !imageUrl.includes('16x16') &&
+        !imageUrl.includes('favicon') &&
+        imageUrl.length > 50
+      ) {
         return imageUrl
       }
     }
   }
 
-  // Fallback: Use country flag dynamically
+  // 3) Country flag fallback
   if (country === 'global') {
-    console.log('🌍 Using global/UN flag as fallback')
     return 'https://flagcdn.com/w320/un.png'
   }
 
-  // Get country code from react-select-country-list
   const countries = countryList().getData()
   const countryData = countries.find(c => c.value.toLowerCase() === country.toLowerCase())
-  
   if (countryData) {
-    const flagUrl = `https://flagcdn.com/w320/${countryData.value.toLowerCase()}.png`
-    console.log(`🏳️ Using ${countryData.label} flag as fallback:`, flagUrl)
-    return flagUrl
+    return `https://flagcdn.com/w320/${countryData.value.toLowerCase()}.png`
   }
 
-  // Ultimate fallback
-  console.log('⚠️ Country not found, using global flag')
   return 'https://flagcdn.com/w320/un.png'
 }
 
@@ -157,7 +184,7 @@ export const parseGoogleNewsXML = (xmlText, category, country = 'global') => {
     const result = parser.parse(xmlText)
     const items = result.rss?.channel?.item || []
     
-    const articles = items.map((item, index) => {
+    const articles = items.map((item) => {
       let title = item.title || ''
       if (typeof title === 'object' && title['#text']) {
         title = title['#text']
@@ -168,7 +195,11 @@ export const parseGoogleNewsXML = (xmlText, category, country = 'global') => {
         description = description['#text']
       }
       
-      let cleanDescription = description
+      // Try to extract original article URL from description's first anchor
+      const linkMatch = description && description.match(/<a[^>]+href="([^"]+)"/i)
+      const originalUrl = linkMatch && linkMatch[1] ? linkMatch[1].replace(/&amp;/g, '&') : null
+
+      let cleanDescription = (description || '')
         .replace(/<[^>]*>/g, '')
         .replace(/&lt;/g, '<')
         .replace(/&gt;/g, '>')
@@ -178,8 +209,7 @@ export const parseGoogleNewsXML = (xmlText, category, country = 'global') => {
         .replace(/&nbsp;/g, ' ')
         .trim()
 
-      // Get real news image or country flag dynamically
-      const imageUrl = getNewsImage(description, country, category, title)
+      const imageUrl = getNewsImage(description, country, category, title, item)
 
       const sentences = cleanDescription.split(/[.!?]+/).filter(s => s.trim().length > 20)
       let summary = sentences.slice(0, 3).join('. ').trim()
@@ -199,11 +229,12 @@ export const parseGoogleNewsXML = (xmlText, category, country = 'global') => {
         url: item.link || item.guid || '',
         urlToImage: imageUrl,
         publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-        source: { 
+        source: {
           name: item.source?.['#text'] || item.source || 'Google News'
         },
         category: category,
-        author: item['dc:creator'] || null
+        author: item['dc:creator'] || null,
+        originalUrl
       }
     })
 

@@ -31,20 +31,20 @@ const Landing = () => {
         </header>
 
         {/* Main Content */}
-        <div className="px-40 flex flex-1 justify-center py-5">
+        <div className="px-4 flex flex-1 justify-center py-2">
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
             
             {/* Hero Section */}
             <div className="@container">
-              <div className="@[480px]:p-4">
+              <div className="@[480px]:p-2">
                 <div
-                  className="flex min-h-[480px] flex-col gap-6 bg-cover bg-center bg-no-repeat @[480px]:gap-8 @[480px]:rounded-lg items-center justify-center p-4"
+                  className="flex min-h-[280px] flex-col gap-4 bg-cover bg-center bg-no-repeat @[480px]:gap-6 @[480px]:rounded-lg items-center justify-center p-4"
                   style={{
                     backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.4) 100%), url("https://lh3.googleusercontent.com/aida-public/AB6AXuD4J18NiXS0kACFhmiW8xPkTXw1pshWyxz9nJe7xznkiuPCTiLTbdW97aLsxi87oYVFW_LdAZTe0CWCvq_oqsGyTiBMMXQM-XaVu5k9M-SaIzgIlQuSiqh1w36ur9Pv_9C-RMcD26wDl4-LN5-SdFHf2U-2dEFCSgYyKL7Bg94OfUaYrmnrO5Cknr62c1ZmjNDzIhIotqSQBGCXzQYn_flzIzjsZ_XV61xTiQuUAi1Q_0lCIchDufjRbSKtr1m9X168Oaz9v48zfjc")`
                   }}
                 >
                   <div className="flex flex-col gap-2 text-center">
-                    <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em] @[480px]:text-5xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em]">
+                    <h1 className="text-white text-2xl font-black leading-tight tracking-[-0.033em] @[480px]:text-3xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em]">
                       Newsly
                     </h1>
                     <h2 className="text-white text-sm font-normal leading-normal @[480px]:text-base @[480px]:font-normal @[480px]:leading-normal">
@@ -62,53 +62,53 @@ const Landing = () => {
             </div>
 
             {/* Features Section */}
-            <div className="flex flex-col gap-10 px-4 py-10 @container">
-              <h1 className="text-[#111418] tracking-light text-[32px] font-bold leading-tight @[480px]:text-4xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[720px]">
+            <div className="flex flex-col gap-4 px-2 py-4 @container">
+              <h1 className="text-[#111418] tracking-light text-[24px] font-bold leading-tight @[480px]:text-[28px] @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[720px]">
                 Features
               </h1>
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-0">
-                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-4 flex-col">
+              <div className="grid grid-cols-1 @[480px]:grid-cols-3 gap-3 p-0">
+                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-3 flex-col">
                   <div className="text-[#111418]">
-                    <Newspaper size={24} />
+                    <Newspaper size={20} />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <h2 className="text-[#111418] text-base font-bold leading-tight">Personalized Feed</h2>
-                    <p className="text-[#60708a] text-sm font-normal leading-normal">Get news tailored to your interests.</p>
+                    <h2 className="text-[#111418] text-sm font-bold leading-tight">Personalized Feed as per the data expected </h2>
+                    <p className="text-[#60708a] text-xs font-normal leading-normal">Get news tailored to your interests on the basis of the data provided of the basic country as because of the biasness things are going to be chnaged as well.</p>
                   </div>
                 </div>
-                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-4 flex-col">
+                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-3 flex-col">
                   <div className="text-[#111418]">
-                    <List size={24} />
+                    <List size={20} />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <h2 className="text-[#111418] text-base font-bold leading-tight">Multiple Sources</h2>
-                    <p className="text-[#60708a] text-sm font-normal leading-normal">Access news from various sources.</p>
+                    <h2 className="text-[#111418] text-sm font-bold leading-tight">Multiple Sources as per the insured and biasness provided accordingly as well</h2>
+                    <p className="text-[#60708a] text-xs font-normal leading-normal">Access news from various sources as per the country as it needs to be changed</p>
                   </div>
                 </div>
-                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-4 flex-col">
+                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-3 flex-col">
                   <div className="text-[#111418]">
-                    <Bookmark size={24} />
+                    <Bookmark size={20} />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <h2 className="text-[#111418] text-base font-bold leading-tight">Save & Share</h2>
-                    <p className="text-[#60708a] text-sm font-normal leading-normal">Save articles for later and share with friends.</p>
+                    <h2 className="text-[#111418] text-sm font-bold leading-tight">Save & Share</h2>
+                    <p className="text-[#60708a] text-xs font-normal leading-normal">Save articles for later and share with friends as per the meed of the data and things are going to be changed too as per the biasness of the data provided</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <footer className="flex flex-col gap-6 px-5 py-10 text-center @container">
+            <footer className="flex flex-col gap-4 px-2 py-6 text-center @container">
               <div className="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around">
                 <a className="text-[#60708a] text-base font-normal leading-normal min-w-40" href="#">
                   Privacy Policy
                 </a>
                 <a className="text-[#60708a] text-base font-normal leading-normal min-w-40" href="#">
-                  Terms of Service
+                  Terms of Service that needs to be folllowed eventually ! 
                 </a>
               </div>
               <p className="text-[#60708a] text-base font-normal leading-normal">
-                ©2024 Newsly. All rights reserved.
+                ©2025 Newsly. Good things are getting brewed.
               </p>
             </footer>
           </div>

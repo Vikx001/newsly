@@ -12,8 +12,8 @@ export const setStoredGenres = (genres) => {
   localStorage.setItem('newsly_genres', JSON.stringify(genres))
 }
 
-// Country storage
 export const getStoredCountry = () => {
+
   return localStorage.getItem('newsly_country') || 'global'
 }
 
@@ -21,7 +21,13 @@ export const setStoredCountry = (countryCode) => {
   localStorage.setItem('newsly_country', countryCode)
 }
 
-// Bookmark storage
+// Feed preferences
+export const getStoredSortMode = () => localStorage.getItem('newsly_sort_mode') || 'personalized' // 'latest' | 'personalized'
+export const setStoredSortMode = (mode) => localStorage.setItem('newsly_sort_mode', mode)
+
+export const getHidePaywalled = () => JSON.parse(localStorage.getItem('newsly_hide_paywalled') || 'false')
+export const setHidePaywalled = (val) => localStorage.setItem('newsly_hide_paywalled', JSON.stringify(!!val))
+
 export const getStoredBookmarks = () => {
   try {
     const stored = localStorage.getItem('newsly_bookmarks')
@@ -42,12 +48,14 @@ export const addBookmark = (article) => {
     bookmarks.push(article)
     setStoredBookmarks(bookmarks)
   }
+  return bookmarks
 }
 
 export const removeBookmark = (articleUrl) => {
   const bookmarks = getStoredBookmarks()
   const filtered = bookmarks.filter(b => b.url !== articleUrl)
   setStoredBookmarks(filtered)
+  return filtered
 }
 
 export const isBookmarked = (articleUrl) => {

@@ -1,39 +1,51 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
-import { 
-  ArrowLeft, 
-  Type, 
-  Sun, 
-  Moon, 
-  Bell, 
-  CreditCard, 
-  Clock, 
-  MessageSquare, 
-  HelpCircle, 
+import {
+  ArrowLeft,
+  Type,
+  Sun,
+  Moon,
+  Bell,
+  Bookmark,
+  CreditCard,
+  Clock,
+  MessageSquare,
+  HelpCircle,
   ChevronRight,
   LogOut,
   Check,
-  X
+  X,
+  Shield
 } from 'lucide-react'
+import { getHidePaywalled, setHidePaywalled, getStoredSortMode, setStoredSortMode } from '../utils/storage'
 
 const Settings = () => {
   const navigate = useNavigate()
-  const { theme, toggleTheme } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
   const [notifications, setNotifications] = useState(true)
   const [fontSize, setFontSize] = useState('medium')
+  const [enhancedBias, setEnhancedBias] = useState(false)
   const [showModal, setShowModal] = useState(null)
+  const [hidePaywalled, setHidePaywalledState] = useState(getHidePaywalled())
+  const [sortMode, setSortMode] = useState(getStoredSortMode())
 
   useEffect(() => {
     // Load settings from localStorage
     const savedNotifications = localStorage.getItem('newsly_notifications')
     const savedFontSize = localStorage.getItem('newsly_font_size')
-    
+    const savedEnhancedBias = localStorage.getItem('newsly_enhanced_bias')
+
     if (savedNotifications !== null) {
       setNotifications(JSON.parse(savedNotifications))
     }
     if (savedFontSize) {
       setFontSize(savedFontSize)
+      document.documentElement.style.fontSize =
+        savedFontSize === 'small' ? '14px' : savedFontSize === 'large' ? '18px' : '16px'
+    }
+    if (savedEnhancedBias !== null) {
+      setEnhancedBias(JSON.parse(savedEnhancedBias))
     }
   }, [])
 
@@ -47,6 +59,12 @@ const Settings = () => {
     setFontSize(size)
     localStorage.setItem('newsly_font_size', size)
     document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px'
+  }
+
+  const handleEnhancedBiasToggle = () => {
+    const newValue = !enhancedBias
+    setEnhancedBias(newValue)
+    localStorage.setItem('newsly_enhanced_bias', JSON.stringify(newValue))
   }
 
   const handleFeedback = () => {
@@ -79,14 +97,14 @@ const Settings = () => {
           showArrow: true
         },
         {
-          icon: theme === 'dark' ? Moon : Sun,
+          icon: isDark ? Moon : Sun,
           title: "Theme",
           description: "Choose your preferred app theme",
           action: () => {
             console.log('Theme clicked')
             toggleTheme()
           },
-          value: theme === 'dark' ? 'Dark' : 'Light',
+          value: isDark ? 'Dark' : 'Light',
           showArrow: false
         },
         {
@@ -99,12 +117,54 @@ const Settings = () => {
           },
           value: notifications ? 'On' : 'Off',
           showArrow: false
+        },
+        {
+          icon: Shield,
+          title: "Enhanced Bias Analysis",
+          description: "Stronger heuristic for bias detection",
+          action: () => {
+            console.log('Enhanced Bias Analysis clicked')
+            handleEnhancedBiasToggle()
+          },
+          value: enhancedBias ? 'On' : 'Off',
+          showArrow: false
+        },
+        {
+          icon: Bookmark,
+          title: "Hide Paywalled Articles",
+          description: "Filter out articles from common paywalled sites",
+          action: () => {
+            const next = !hidePaywalled
+            setHidePaywalledState(next)
+            setHidePaywalled(next)
+          },
+          value: hidePaywalled ? 'On' : 'Off',
+          showArrow: false
+        },
+        {
+          icon: Clock,
+          title: "Default Sort",
+          description: "Choose between Personalized or Latest",
+          action: () => {
+            const next = sortMode === 'personalized' ? 'latest' : 'personalized'
+            setSortMode(next)
+            setStoredSortMode(next)
+          },
+          value: sortMode === 'latest' ? 'Latest' : 'Personalized',
+          showArrow: false
         }
       ]
     },
     {
       category: "Account",
       items: [
+        {
+          icon: Bookmark,
+          title: "Bookmarks",
+          description: "View your saved articles",
+          action: () => navigate('/bookmarks'),
+          showArrow: true
+        },
         {
           icon: CreditCard,
           title: "Subscriptions",
@@ -121,10 +181,7 @@ const Settings = () => {
           description: "Clear your reading history",
           action: () => {
             console.log('Clear History clicked')
-            if (confirm('Are you sure you want to clear your reading history?')) {
-              localStorage.removeItem('newsly_reading_history')
-              alert('Reading history cleared!')
-            }
+            setShowModal('confirmClearHistory')
           },
           showArrow: true
         },
@@ -153,14 +210,20 @@ const Settings = () => {
   ]
 
   const handleLogout = () => {
-    if (confirm('Are you sure you want to log out?')) {
-      localStorage.clear()
-      navigate('/login')
-    }
+    setShowModal('confirmLogout')
   }
 
   const Modal = ({ type, onClose }) => {
     if (!type) return null
+
+    // Close on Escape
+    useEffect(() => {
+      const onKeyDown = (e) => {
+        if (e.key === 'Escape') onClose()
+      }
+      window.addEventListener('keydown', onKeyDown)
+      return () => window.removeEventListener('keydown', onKeyDown)
+    }, [onClose])
 
     const modalContent = {
       reading: (
@@ -175,8 +238,8 @@ const Settings = () => {
                     key={size}
                     onClick={() => handleFontSizeChange(size)}
                     className={`px-3 py-2 rounded-lg border ${
-                      fontSize === size 
-                        ? 'bg-blue-600 text-white border-blue-600' 
+                      fontSize === size
+                        ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
                     }`}
                   >
@@ -205,7 +268,7 @@ const Settings = () => {
               <h4 className="font-medium">Contact Support:</h4>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
                 Email: support@newsly.app<br/>
-                Response time: 24-48 hours
+                Response time: 12-24 hours
               </p>
             </div>
           </div>
@@ -233,12 +296,58 @@ const Settings = () => {
             </div>
           </div>
         </div>
+      ),
+      confirmClearHistory: (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Clear History</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Are you sure you want to clear your reading history?</p>
+          <div className="flex gap-2 justify-end">
+            <button onClick={onClose} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600">Cancel</button>
+            <button
+              onClick={() => {
+                localStorage.removeItem('newsly_reading_history')
+                onClose()
+              }}
+              className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ),
+      confirmLogout: (
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Log Out</h3>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">Are you sure you want to log out?</p>
+          <div className="flex gap-2 justify-end">
+            <button onClick={onClose} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600">Cancel</button>
+            <button
+              onClick={() => {
+                localStorage.clear()
+                onClose()
+                navigate('/login')
+              }}
+              className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+            >
+              Log Out
+            </button>
+          </div>
+        </div>
       )
     }
 
+    const showDone = ['reading', 'help', 'subscriptions'].includes(type)
+
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        role="dialog" aria-modal="true" aria-label="Settings modal"
+        onClick={onClose}
+      >
+        <div
+          className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between mb-4">
             {modalContent[type]}
             <button
@@ -248,12 +357,14 @@ const Settings = () => {
               <X size={20} />
             </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Done
-          </button>
+          {showDone && (
+            <button
+              onClick={onClose}
+              className="w-full mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Done
+            </button>
+          )}
         </div>
       </div>
     )
@@ -272,14 +383,14 @@ const Settings = () => {
               />
             </svg>
           </div>
-          <h2 
+          <h2
             className="text-[#121416] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] cursor-pointer"
             onClick={() => navigate('/')}
           >
             Newsly
           </h2>
         </div>
-        
+
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -303,11 +414,12 @@ const Settings = () => {
               <h3 className="text-[#121416] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] px-4 pb-2 pt-4">
                 {section.category}
               </h3>
-              
+
               {section.items.map((item, itemIndex) => (
-                <div 
+                <button
+                  type="button"
                   key={itemIndex}
-                  className="flex items-center gap-4 bg-white dark:bg-gray-800 px-4 min-h-[72px] py-2 justify-between hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                  className="flex w-full text-left items-center gap-4 bg-white dark:bg-gray-800 px-4 min-h-[72px] py-2 justify-between hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                   onClick={item.action}
                 >
                   <div className="flex items-center gap-4">
@@ -323,7 +435,7 @@ const Settings = () => {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="shrink-0">
                     {item.value ? (
                       <p className="text-[#121416] dark:text-white text-base font-normal leading-normal">
@@ -333,13 +445,14 @@ const Settings = () => {
                       <ChevronRight size={24} className="text-[#121416] dark:text-white" />
                     ) : null}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ))}
 
           {/* Logout */}
-          <div 
+          <button
+            type="button"
             className="flex items-center gap-4 bg-white dark:bg-gray-800 px-4 min-h-14 justify-between hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors mt-4"
             onClick={handleLogout}
           >
@@ -354,7 +467,7 @@ const Settings = () => {
             <div className="shrink-0">
               <ChevronRight size={20} className="text-red-600 dark:text-red-400" />
             </div>
-          </div>
+          </button>
         </div>
       </div>
       <Modal type={showModal} onClose={() => setShowModal(null)} />

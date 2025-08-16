@@ -11,10 +11,10 @@ const UnderConstruction = () => {
         <div className="mb-8">
           <Wrench size={64} className="mx-auto text-blue-600 dark:text-blue-400 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Something Cool is Under Construction
+            Cool features are under UnderConstruction for the data as well. can be chnaged as per the data given and pr
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            We're working hard to bring you this feature. Stay tuned!
+            Please stay here for the new features as well.
           </p>
         </div>
         

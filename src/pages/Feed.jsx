@@ -1,17 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw, Settings, ChevronDown, Sun, Moon, Bookmark } from 'lucide-react'
+import {
+  RefreshCw,
+  Settings,
+  ChevronDown,
+  Sun,
+  Moon,
+  Bookmark,
+  MoreHorizontal,
+  Share
+} from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import NewsCard from '../components/NewsCard'
 import CommentsCard from '../components/CommentsCard'
 import { fetchNews } from '../utils/api'
-import { getStoredGenres, getStoredCountry, setStoredCountry } from '../utils/storage'
+import { getStoredGenres, getStoredCountry, setStoredCountry, getStoredSortMode, setStoredSortMode, getHidePaywalled } from '../utils/storage'
+import { PAYWALLED_DOMAINS } from '../utils/constants'
 import CountrySelector from '../components/CountrySelector'
 import countryList from 'react-select-country-list'
 
 const Feed = () => {
   const countries = useMemo(() => countryList().getData(), [])
-  
+
   const getCountryName = (countryCode) => {
     if (countryCode === 'global') return 'Global'
     const country = countries.find(c => c.value.toLowerCase() === countryCode.toLowerCase())
@@ -33,34 +43,72 @@ const Feed = () => {
   const [showCountrySelector, setShowCountrySelector] = useState(false)
   const [hasInitialLoad, setHasInitialLoad] = useState(false)
 
+  // Preferences
+  const [sortMode, setSortMode] = useState(getStoredSortMode()) // 'latest' | 'personalized'
+  const [hidePaywalled, setHidePaywalled] = useState(getHidePaywalled())
+
+  const [scrolled, setScrolled] = useState(false)
+
+  // Derive filtered/sorted articles
+  const filteredArticles = useMemo(() => {
+    let list = [...articles]
+
+    // Hide paywalled if enabled
+    if (hidePaywalled) {
+      const isPaywalledDomain = (url) => {
+        try {
+          const host = new URL(url).hostname.replace(/^www\./, '')
+          return PAYWALLED_DOMAINS.some(d => host === d || host.endsWith(`.${d}`))
+        } catch { return false }
+      }
+      list = list.filter(a => a?.url && !isPaywalledDomain(a.url))
+    }
+
+    if (sortMode === 'latest') {
+      list.sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
+    }
+
+    return list
+  }, [articles, hidePaywalled, sortMode])
+
+  // Reset index when filters change
+  useEffect(() => {
+    setCurrentIndex(0)
+  }, [sortMode, hidePaywalled])
+
+  const handleMainScroll = (e) => {
+    setScrolled(e.currentTarget.scrollTop > 0)
+  }
+
+
   // Add debugging
-  console.log('🔍 Feed component state:', { 
-    selectedGenres, 
-    selectedCountry, 
-    loading, 
-    articlesCount: articles.length 
+  console.log('🔍 Feed component state:', {
+    selectedGenres,
+    selectedCountry,
+    loading,
+    articlesCount: articles.length
   })
 
   const loadNews = async (forceRefresh = false) => {
     console.log('📰 Starting loadNews...', { forceRefresh, selectedGenres, selectedCountry })
-    
+
     // For force refresh, always proceed regardless of loading state
     if (!forceRefresh && loading) {
       console.log('⏸️ Already loading, skipping...')
       return
     }
-    
+
     setLoading(true)
     setError(null)
-    
+
     try {
       const genres = selectedGenres?.length > 0 ? selectedGenres : ['technology', 'business']
       console.log('🔍 Loading news with:', { genres, selectedCountry })
-      
+
       console.log('🌐 Calling fetchNews API...')
       const data = await fetchNews(genres, 'auto', selectedCountry)
       console.log('✅ News data received:', data)
-      
+
       if (data && data.articles && data.articles.length > 0) {
         if (forceRefresh) {
           setArticles(data.articles)
@@ -70,6 +118,7 @@ const Feed = () => {
         }
         console.log('📰 Articles set:', data.articles.length)
       } else {
+
         console.warn('⚠️ No articles in response:', data)
         setError('No articles found for your selected categories')
       }
@@ -94,20 +143,9 @@ const Feed = () => {
     console.log('🌍 Country changed to:', countryCode)
     setSelectedCountry(countryCode)
     setStoredCountry(countryCode)
-    
-    // Show refreshing state immediately
-    setRefreshing(true)
-    
-    // Clear current articles and reset index
-    setArticles([])
-    setCurrentIndex(0)
-    
-    try {
-      // Force refresh with new country
-      await loadNews(true)
-    } finally {
-      setRefreshing(false)
-    }
+
+    // Refresh the entire app
+    window.location.reload()
   }
 
   const handleRefresh = () => {
@@ -133,7 +171,7 @@ const Feed = () => {
 
   const handleReadAloud = (article) => {
     if (!window.speechSynthesis) return
-    
+
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel()
     } else {
@@ -211,7 +249,7 @@ const Feed = () => {
         setError('Loading took too long. Please try again.')
       }, 15000)
     }
-    
+
     return () => {
       if (timeout) clearTimeout(timeout)
     }
@@ -244,11 +282,11 @@ const Feed = () => {
     )
   }
 
-  if (articles.length === 0) {
+  if (filteredArticles.length === 0) {
     return (
       <div className="h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">No articles found for your selected categories.</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">No articles found for your selected filters.</p>
           <button onClick={handleRefresh} className="btn-primary">
             Refresh
           </button>
@@ -258,9 +296,10 @@ const Feed = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 relative overflow-hidden">
-      <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f0f2f5] px-4 py-3 bg-white relative z-30">
-        <div className="flex items-center gap-3 text-[#111418] relative">
+    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+      {/* Header - Fixed */}
+      <header className={`flex items-center justify-between whitespace-nowrap px-4 py-3 flex-shrink-0 backdrop-blur ${scrolled ? 'bg-white/80 dark:bg-gray-800/80 border-b border-b-[#e7edf3] dark:border-b-gray-700' : 'bg-white dark:bg-gray-800'}`}>
+        <div className="flex items-center gap-4 text-[#0d151c] dark:text-white">
           <div className="size-4">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -269,103 +308,125 @@ const Feed = () => {
               />
             </svg>
           </div>
-          <h2 className="text-[#111418] text-lg font-bold leading-tight tracking-[-0.015em]">Newsly</h2>
-          
-          {/* Clickable country flag */}
-          <button 
-            onClick={() => setShowCountrySelector(!showCountrySelector)}
-            disabled={refreshing || loading}
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800 transition-colors p-1 rounded disabled:opacity-50"
+          <h2
+            className="text-[#0d151c] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] cursor-pointer"
+            onClick={() => navigate('/')}
           >
-            <span className="text-lg">
-              {selectedCountry === 'global' ? '🌍' : 
-               selectedCountry.toUpperCase().replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt()))}
-            </span>
-            <ChevronDown size={12} className={`transition-transform ${showCountrySelector ? 'rotate-180' : ''} ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
-          
-          {/* Floating dropdown - fixed positioning for mobile */}
-          {showCountrySelector && (
-            <>
-              <div 
-                className="fixed inset-0 z-40 bg-black bg-opacity-20" 
-                onClick={() => setShowCountrySelector(false)}
-              />
-              <div className="absolute top-12 left-0 right-0 z-50 bg-white border border-gray-200 rounded-lg shadow-lg max-w-sm">
+            Newsly
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Country Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setShowCountrySelector(!showCountrySelector)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors w-36 overflow-hidden justify-between"
+            >
+              <span className="text-sm truncate flex-1">{getCountryName(selectedCountry)}</span>
+              <ChevronDown size={16} />
+            </button>
+
+            {showCountrySelector && (
+              <div className="absolute top-full right-0 mt-2 z-50">
                 <CountrySelector
                   selectedCountry={selectedCountry}
-                  onCountryChange={(country) => {
-                    handleCountryChange(country)
-                    setShowCountrySelector(false)
-                  }}
-                  className="border-0 shadow-none"
+                  onCountryChange={handleCountryChange}
+                  className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg"
                 />
               </div>
-            </>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate('/bookmarks')}
-            className="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-[#f0f2f5] text-[#111418] hover:bg-gray-200 transition-colors"
-          >
-            <Bookmark size={18} />
-          </button>
-          <button
-            onClick={toggleTheme}
-            className="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-[#f0f2f5] text-[#111418] hover:bg-gray-200 transition-colors"
-          >
-            {isDark ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+            )}
+          </div>
+
+          {/* Refresh Button */}
           <button
             onClick={handleRefresh}
-            disabled={refreshing || loading}
-            className="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-[#f0f2f5] text-[#111418] hover:bg-gray-200 transition-colors disabled:opacity-50"
+            disabled={refreshing}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
-            <RefreshCw size={18} className={refreshing || loading ? 'animate-spin' : ''} />
+            <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
           </button>
+
+          {/* Sort Toggle */}
+          <div className="hidden sm:flex items-center rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => { setSortMode('personalized'); setStoredSortMode('personalized') }}
+              className={`px-3 py-2 text-sm ${sortMode === 'personalized' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}
+            >
+              Personalized
+            </button>
+            <button
+              onClick={() => { setSortMode('latest'); setStoredSortMode('latest') }}
+              className={`px-3 py-2 text-sm ${sortMode === 'latest' ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}
+            >
+              Latest
+            </button>
+          </div>
+
+          {/* Settings Button */}
           <button
             onClick={() => navigate('/settings')}
-            className="flex cursor-pointer items-center justify-center rounded-lg h-10 w-10 bg-[#f0f2f5] text-[#111418] hover:bg-gray-200 transition-colors"
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
-            <Settings size={18} />
+            <Settings size={20} />
+          </button>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+          >
+            {isDark ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </div>
       </header>
 
-      <div className="h-full pt-4 pb-4 px-4 flex items-center justify-center relative z-10">
-        <div className="w-full max-w-2xl h-full flex flex-col">
-          <div className={`transition-all duration-300 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'}`}>
-            {showComments ? (
-              <CommentsCard 
-                article={selectedArticle}
-                onClose={handleCloseComments}
-              />
-            ) : (
-              <NewsCard 
-                key={`article-${currentIndex}`}
-                article={articles[currentIndex]}
-                onBookmarkChange={() => {}}
+
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 overflow-y-auto" onScroll={handleMainScroll}>
+        <div className="px-4 py-6">
+          <div className="max-w-2xl mx-auto">
+            {refreshing && (
+              <div className="text-center mb-4">
+                <RefreshCw className="animate-spin mx-auto mb-2 text-blue-600" size={24} />
+                <p className="text-sm text-gray-600 dark:text-gray-400">Refreshing...</p>
+              </div>
+            )}
+
+            <div className={`transition-all duration-300 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'}`}>
+
+              <NewsCard
+                article={filteredArticles[currentIndex]}
                 onNext={handleNext}
                 onPrevious={handlePrevious}
                 onShowComments={handleShowComments}
                 showNavigation={true}
                 isFirst={currentIndex === 0}
-                isLast={currentIndex === articles.length - 1}
+                isLast={currentIndex === filteredArticles.length - 1}
               />
+            </div>
+
+            {/* Swipe Up Animation - Outside the card if the card is not the last one */}
+            {currentIndex < articles.length - 1 && (
+              <div className="flex flex-col items-center justify-center mt-8 py-4">
+                <div className="animate-bounce mb-2">
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                </div>
+                <p className="text-gray-400 text-sm font-medium">Swipe up</p>
+              </div>
             )}
           </div>
         </div>
-      </div>
+      </main>
 
-      {!showComments && currentIndex < articles.length - 1 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="flex flex-col items-center text-gray-400 dark:text-gray-500 animate-bounce">
-            <ChevronDown size={20} />
-            <span className="text-xs mt-1">Swipe up</span>
-          </div>
-        </div>
+      {/* Comments Modal */}
+      {showComments && selectedArticle && (
+        <CommentsCard
+          article={selectedArticle}
+          onClose={handleCloseComments}
+        />
       )}
     </div>
   )

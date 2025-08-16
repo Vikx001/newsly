@@ -62,8 +62,9 @@ function Bookmarks() {
         
         {bookmarks.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-600 dark:text-gray-400 text-lg">No bookmarks yet</p>
-            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Start bookmarking articles to see them here</p>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">Please add the first bookmark</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Start bookmarking articles to see if data changes </p>
+             <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">changing the data in bookmark will change the biasness of the data as well you provide as biasness is important part </p>
           </div>
         ) : (
           <div className="space-y-6">

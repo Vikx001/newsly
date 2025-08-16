@@ -7,11 +7,10 @@ const getProxiedImageUrl = (imageUrl) => {
   if (!imageUrl) return null
   
   // For native platforms, try direct URL first
+  // for all the platforms they have to see if it is working or not 
   if (window.Capacitor?.isNativePlatform()) {
     return imageUrl
   }
-  
-  // For web, use multiple image proxy services
   try {
     const url = new URL(imageUrl)
     
@@ -27,7 +26,7 @@ const getProxiedImageUrl = (imageUrl) => {
       imageUrl
     ]
     
-    return proxyServices[0] // Return the most reliable one
+    return proxyServices[0] 
   } catch {
     return imageUrl
   }
@@ -51,7 +50,7 @@ export const fetchNews = async (categories, source = 'auto', country = 'global')
         
         if (response.data) {
           const { parseGoogleNewsXML } = await import('./mockApi.js')
-          const articles = parseGoogleNewsXML(response.data, category)
+          const articles = parseGoogleNewsXML(response.data, category, country)
           allArticles.push(...articles)
         }
       }
