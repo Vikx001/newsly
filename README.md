@@ -30,18 +30,16 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 - **💬 Comments System**: Add and view comments on articles
 - **📤 Share Functionality**: Share articles across platforms
 
-## � Development Timeline
+## 📅 Development Timeline
 
 | Date | Version | Updates |
 |------|---------|---------|
-| **16/08/2025** | v2.3.0 | 🎨 **Layout Refresh & Settings Expansion**<br/>• New compact header in Feed with country selector, refresh, sort (Personalized/Latest), theme and settings buttons<br/>• “Swipe up” affordance and smoother card transitions<br/>• Read Aloud controls and keyboard shortcuts (Arrow Up/Down, Ctrl+Space)<br/>• Community Bias features: analysis panel + vote sheet with local persistence<br/>• Article translation with LibreTranslate/Lingva fallback<br/>• Settings additions: Theme, Notifications, Reading font size, Hide paywalled, Default sort, Bookmarks, Subscriptions (stub), Clear history, Feedback, Help & Support, Logout |
-
-| **16/08/2025** | v2.2.0 | 🖼️ **Smart Image Resolver & Reliability**<br/>• Prefer original article URL (bypass Google News redirect)<br/>• Extract images from OG/Twitter/JSON‑LD/srcset and follow canonical links<br/>• Openverse photograph fallback when no image is found<br/>• Web image proxying for reliability (Weserv)<br/>• Improved handling of placeholder/flag images |
-
-| **30/01/2025** | v2.1.0 | 🌍 **Country Selection Feature**<br/>• Added 15+ country support with flag indicators<br/>• Auto-refresh on country change<br/>• Visual loading states for country selector<br/>• Improved refresh button feedback |
-| **29/01/2025** | v2.0.0 | 🔧 **Major UI/UX Improvements**<br/>• Fixed mobile external URL navigation<br/>• TikTok-style swipe navigation<br/>• Dark/Light theme toggle<br/>• Comments system with local storage<br/>• Responsive design for mobile/desktop<br/>• Share functionality<br/>• Capacitor integration for mobile apps<br/>• Mobile "Read More" button fixes |
-| **28/01/2025** | v1.5.0 | 📱 **Mobile Optimization**<br/>• Enhanced swipe gestures<br/>• Improved touch responsiveness<br/>• Better mobile UI components |
-| **27/01/2025** | v1.0.0 | 🎉 **Initial Release**<br/>• Core news fetching functionality<br/>• Genre selection<br/>• Basic UI components<br/>• Web deployment ready |
+| 16/08/2025 | v2.3.0 | 🎨 Layout Refresh & Settings Expansion<br/>• New compact header in Feed with country selector, refresh, sort (Personalized/Latest), theme and settings buttons.<br/>• “Swipe up” affordance and smoother card transitions.<br/>• Read Aloud controls and keyboard shortcuts (Arrow Up/Down, Ctrl+Space).<br/>• Community Bias features: analysis panel + vote sheet with local persistence.<br/>• Article translation with LibreTranslate/Lingva fallback.<br/>• Settings additions: Theme, Notifications, Reading font size, Hide paywalled, Default sort, Bookmarks, Subscriptions (stub), Clear history, Feedback, Help & Support, Logout |
+| 16/08/2025 | v2.2.0 | 🖼️ Smart Image Resolver & Reliability<br/>• Prefer original article URL (bypass Google News redirect).<br/>• Extract images from OG/Twitter/JSON‑LD/srcset and follow canonical links.<br/>• Openverse photograph fallback when no image is found.<br/>• Web image proxying for reliability (Weserv).<br/>• Improved handling of placeholder/flag images |
+| 30/01/2025 | v2.1.0 | 🌍 Country Selection Feature<br/>• Added 15+ country support with flag indicators.<br/>• Auto-refresh on country change.<br/>• Visual loading states for country selector.<br/>• Improved refresh button feedback |
+| 29/01/2025 | v2.0.0 | 🔧 Major UI/UX Improvements<br/>• Fixed mobile external URL navigation.<br/>• TikTok-style swipe navigation.<br/>• Dark/Light theme toggle.<br/>• Comments system with local storage.<br/>• Responsive design for mobile/desktop.<br/>• Share functionality.<br/>• Capacitor integration for mobile apps.<br/>• Mobile "Read More" button fixes |
+| 28/01/2025 | v1.5.0 | 📱 Mobile Optimization<br/>• Enhanced swipe gestures.<br/>• Improved touch responsiveness.<br/>• Better mobile UI components |
+| 27/01/2025 | v1.0.0 | 🎉 Initial Release<br/>• Core news fetching functionality.<br/>• Genre selection.<br/>• Basic UI components.<br/>• Web deployment ready |
 
 ## 🏗️ Architecture Overview
 
