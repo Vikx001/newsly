@@ -1,118 +1,119 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Newspaper, List, Bookmark, Sun, Moon } from 'lucide-react'
+import { Zap, Globe2, Bookmark, ShieldCheck, Sun, Moon } from 'lucide-react'
+import { useTheme } from '../contexts/ThemeContext'
+
+const FEATURES = [
+  {
+    icon: Zap,
+    title: 'Personalized Feed',
+    desc: 'News tailored to your interests, topics, and country — updated in real time.',
+    color: 'text-blue-400',
+    bg: 'bg-blue-500/10',
+  },
+  {
+    icon: Globe2,
+    title: 'Multiple Sources',
+    desc: 'Aggregated from hundreds of publishers worldwide so you always get the full picture.',
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10',
+  },
+  {
+    icon: Bookmark,
+    title: 'Save & Share',
+    desc: 'Bookmark articles for later and share the stories that matter to you.',
+    color: 'text-violet-400',
+    bg: 'bg-violet-500/10',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Bias Awareness',
+    desc: 'Every article is analyzed for bias so you can read with full context.',
+    color: 'text-rose-400',
+    bg: 'bg-rose-500/10',
+  },
+]
 
 const Landing = () => {
   const navigate = useNavigate()
-
-  const handleStartReading = () => {
-    navigate('/genres')
-  }
+  const { isDark, toggleTheme } = useTheme()
 
   return (
-    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{fontFamily: 'Newsreader, "Noto Sans", sans-serif'}}>
-      <div className="layout-container flex h-full grow flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f0f2f5] px-10 py-3">
-          <div className="flex items-center gap-4 text-[#111418]">
-            <div className="size-4">
-              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </div>
-            <h2 className="text-[#111418] text-lg font-bold leading-tight tracking-[-0.015em]">Newsly</h2>
-          </div>
-          <button className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#f0f2f5] text-[#111418] gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
-            <Sun size={20} />
-          </button>
-        </header>
+    <div className={`min-h-screen flex flex-col overflow-x-hidden transition-colors duration-300 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`} style={{ fontFamily: 'Inter, sans-serif' }}>
 
-        {/* Main Content */}
-        <div className="px-4 flex flex-1 justify-center py-2">
-          <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            
-            {/* Hero Section */}
-            <div className="@container">
-              <div className="@[480px]:p-2">
-                <div
-                  className="flex min-h-[280px] flex-col gap-4 bg-cover bg-center bg-no-repeat @[480px]:gap-6 @[480px]:rounded-lg items-center justify-center p-4"
-                  style={{
-                    backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.4) 100%), url("https://lh3.googleusercontent.com/aida-public/AB6AXuD4J18NiXS0kACFhmiW8xPkTXw1pshWyxz9nJe7xznkiuPCTiLTbdW97aLsxi87oYVFW_LdAZTe0CWCvq_oqsGyTiBMMXQM-XaVu5k9M-SaIzgIlQuSiqh1w36ur9Pv_9C-RMcD26wDl4-LN5-SdFHf2U-2dEFCSgYyKL7Bg94OfUaYrmnrO5Cknr62c1ZmjNDzIhIotqSQBGCXzQYn_flzIzjsZ_XV61xTiQuUAi1Q_0lCIchDufjRbSKtr1m9X168Oaz9v48zfjc")`
-                  }}
-                >
-                  <div className="flex flex-col gap-2 text-center">
-                    <h1 className="text-white text-2xl font-black leading-tight tracking-[-0.033em] @[480px]:text-3xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em]">
-                      Newsly
-                    </h1>
-                    <h2 className="text-white text-sm font-normal leading-normal @[480px]:text-base @[480px]:font-normal @[480px]:leading-normal">
-                      Stay informed with personalized news
-                    </h2>
-                  </div>
-                  <button
-                    onClick={handleStartReading}
-                    className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 @[480px]:h-12 @[480px]:px-5 bg-[#3880f4] text-white text-sm font-bold leading-normal tracking-[0.015em] @[480px]:text-base @[480px]:font-bold @[480px]:leading-normal @[480px]:tracking-[0.015em]"
-                  >
-                    <span className="truncate">Get Started</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Features Section */}
-            <div className="flex flex-col gap-4 px-2 py-4 @container">
-              <h1 className="text-[#111418] tracking-light text-[24px] font-bold leading-tight @[480px]:text-[28px] @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em] max-w-[720px]">
-                Features
-              </h1>
-              <div className="grid grid-cols-1 @[480px]:grid-cols-3 gap-3 p-0">
-                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-3 flex-col">
-                  <div className="text-[#111418]">
-                    <Newspaper size={20} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-[#111418] text-sm font-bold leading-tight">Personalized Feed as per the data expected </h2>
-                    <p className="text-[#60708a] text-xs font-normal leading-normal">Get news tailored to your interests on the basis of the data provided of the basic country as because of the biasness things are going to be chnaged as well.</p>
-                  </div>
-                </div>
-                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-3 flex-col">
-                  <div className="text-[#111418]">
-                    <List size={20} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-[#111418] text-sm font-bold leading-tight">Multiple Sources as per the insured and biasness provided accordingly as well</h2>
-                    <p className="text-[#60708a] text-xs font-normal leading-normal">Access news from various sources as per the country as it needs to be changed</p>
-                  </div>
-                </div>
-                <div className="flex flex-1 gap-3 rounded-lg border border-[#dbdfe6] bg-white p-3 flex-col">
-                  <div className="text-[#111418]">
-                    <Bookmark size={20} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <h2 className="text-[#111418] text-sm font-bold leading-tight">Save & Share</h2>
-                    <p className="text-[#60708a] text-xs font-normal leading-normal">Save articles for later and share with friends as per the meed of the data and things are going to be changed too as per the biasness of the data provided</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <footer className="flex flex-col gap-4 px-2 py-6 text-center @container">
-              <div className="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around">
-                <a className="text-[#60708a] text-base font-normal leading-normal min-w-40" href="#">
-                  Privacy Policy
-                </a>
-                <a className="text-[#60708a] text-base font-normal leading-normal min-w-40" href="#">
-                  Terms of Service that needs to be folllowed eventually ! 
-                </a>
-              </div>
-              <p className="text-[#60708a] text-base font-normal leading-normal">
-                ©2025 Newsly. Good things are getting brewed.
-              </p>
-            </footer>
-          </div>
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 pt-12 pb-4 z-10">
+        <div className="flex items-center gap-2">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-500">
+            <path d="M24 4C25.7818 14.2173 33.7827 22.2182 44 24C33.7827 25.7818 25.7818 33.7827 24 44C22.2182 33.7827 14.2173 25.7818 4 24C14.2173 22.2182 22.2182 14.2173 24 4Z" fill="currentColor" />
+          </svg>
+          <span className={`font-bold text-lg tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>newsly</span>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-xl transition-colors ${isDark ? 'bg-gray-800 text-gray-300 hover:text-white' : 'bg-white text-gray-500 hover:text-gray-900 shadow-sm border border-gray-200'}`}
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <button
+            onClick={() => navigate('/feed')}
+            className={`text-sm font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            Skip →
+          </button>
+        </div>
+      </header>
+
+      {/* Hero image — kept exactly as-is per user request */}
+      <div className="mx-4 mt-2 rounded-3xl overflow-hidden relative" style={{ minHeight: 300 }}>
+        <div
+          className="flex min-h-[300px] flex-col gap-4 bg-cover bg-center bg-no-repeat items-center justify-center p-6"
+          style={{
+            backgroundImage: `linear-gradient(rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.55) 100%), url("https://lh3.googleusercontent.com/aida-public/AB6AXuD4J18NiXS0kACFhmiW8xPkTXw1pshWyxz9nJe7xznkiuPCTiLTbdW97aLsxi87oYVFW_LdAZTe0CWCvq_oqsGyTiBMMXQM-XaVu5k9M-SaIzgIlQuSiqh1w36ur9Pv_9C-RMcD26wDl4-LN5-SdFHf2U-2dEFCSgYyKL7Bg94OfUaYrmnrO5Cknr62c1ZmjNDzIhIotqSQBGCXzQYn_flzIzjsZ_XV61xTiQuUAi1Q_0lCIchDufjRbSKtr1m9X168Oaz9v48zfjc")`
+          }}
+        >
+          <div className="flex flex-col gap-2 text-center">
+            <h1 className="text-white text-3xl font-black leading-tight tracking-tight drop-shadow-lg">
+              Newsly
+            </h1>
+            <p className="text-white/80 text-sm font-normal leading-relaxed">
+              Stay informed with personalized news
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/genres')}
+            className="mt-2 flex items-center justify-center rounded-xl h-11 px-8 bg-[#3880f4] text-white text-sm font-bold tracking-wide shadow-lg shadow-blue-500/30 active:scale-95 transition-transform"
+          >
+            Get Started
+          </button>
+        </div>
+      </div>
+
+      {/* Tagline */}
+      <div className="px-6 pt-8 pb-2">
+        <h2 className={`text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>Everything you need</h2>
+        <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Built for people who want news done right.</p>
+      </div>
+
+      {/* Feature cards */}
+      <div className="px-5 pt-4 pb-12 grid grid-cols-2 gap-3">
+        {FEATURES.map(({ icon: Icon, title, desc, color, bg }) => (
+          <div key={title} className={`rounded-2xl p-4 flex flex-col gap-3 border transition-colors ${isDark ? 'bg-gray-900 border-gray-800/60' : 'bg-white border-gray-200 shadow-sm'}`}>
+            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center`}>
+              <Icon size={18} className={color} />
+            </div>
+            <div>
+              <h3 className={`text-sm font-semibold leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
+              <p className={`text-xs leading-relaxed mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className={`pb-10 text-center px-6 pt-6 border-t ${isDark ? 'border-gray-800/50' : 'border-gray-200'}`}>
+        <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>© 2026 Newsly · <span className="hover:underline cursor-pointer">Privacy</span> · <span className="hover:underline cursor-pointer">Terms</span></p>
       </div>
     </div>
   )

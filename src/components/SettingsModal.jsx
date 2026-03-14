@@ -40,10 +40,10 @@ const SettingsModal = ({ isOpen, onClose }) => {
             <h3 className="font-medium mb-2">About Newsly</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Ultra-short news stories delivered in 60 words or less. 
-              Built with React and powered by NewsAPI.
+              Built with React and powered by Google News RSS.
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              Version 1.0.0
+              Version 2.3.0
             </p>
           </div>
         </div>

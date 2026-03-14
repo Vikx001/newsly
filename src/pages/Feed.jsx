@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   RefreshCw,
@@ -33,7 +33,10 @@ const Feed = () => {
   const [error, setError] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [animating, setAnimating] = useState(false)
+  const [animDir, setAnimDir] = useState(null)   // 'up' | 'down'
+  const [animReady, setAnimReady] = useState(false)
+  const pendingIndexRef = useRef(null)
   const [showComments, setShowComments] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState(null)
   const { isDark, toggleTheme } = useTheme()
@@ -81,20 +84,9 @@ const Feed = () => {
   }
 
 
-  // Add debugging
-  console.log('🔍 Feed component state:', {
-    selectedGenres,
-    selectedCountry,
-    loading,
-    articlesCount: articles.length
-  })
-
   const loadNews = async (forceRefresh = false) => {
-    console.log('📰 Starting loadNews...', { forceRefresh, selectedGenres, selectedCountry })
-
     // For force refresh, always proceed regardless of loading state
     if (!forceRefresh && loading) {
-      console.log('⏸️ Already loading, skipping...')
       return
     }
 
@@ -103,11 +95,7 @@ const Feed = () => {
 
     try {
       const genres = selectedGenres?.length > 0 ? selectedGenres : ['technology', 'business']
-      console.log('🔍 Loading news with:', { genres, selectedCountry })
-
-      console.log('🌐 Calling fetchNews API...')
       const data = await fetchNews(genres, 'auto', selectedCountry)
-      console.log('✅ News data received:', data)
 
       if (data && data.articles && data.articles.length > 0) {
         if (forceRefresh) {
@@ -116,31 +104,24 @@ const Feed = () => {
         } else {
           setArticles(prev => [...prev, ...data.articles])
         }
-        console.log('📰 Articles set:', data.articles.length)
       } else {
-
-        console.warn('⚠️ No articles in response:', data)
         setError('No articles found for your selected categories')
       }
     } catch (err) {
-      console.error('❌ Load news error:', err)
       setError(err.message || 'Failed to load news')
     } finally {
-      console.log('🏁 Setting loading to false')
       setLoading(false)
     }
   }
 
   useEffect(() => {
     if (!hasInitialLoad) {
-      console.log('🚀 Feed mounted, loading news...')
       setHasInitialLoad(true)
       loadNews()
     }
   }, []) // Remove hasInitialLoad dependency to prevent re-runs
 
   const handleCountryChange = async (countryCode) => {
-    console.log('🌍 Country changed to:', countryCode)
     setSelectedCountry(countryCode)
     setStoredCountry(countryCode)
 
@@ -154,18 +135,44 @@ const Feed = () => {
   }
 
   const handleNext = () => {
-    if (currentIndex < articles.length - 1 && !isTransitioning) {
-      setIsTransitioning(true)
-      setCurrentIndex(prev => prev + 1)
-      setTimeout(() => setIsTransitioning(false), 300)
+    if (currentIndex < filteredArticles.length - 1 && !animating) {
+      const nextIdx = currentIndex + 1
+      pendingIndexRef.current = nextIdx
+      setAnimDir('up')
+      setAnimating(true)
+      setAnimReady(false)
+      // Double rAF: first ensures the incoming card is painted at its initial
+      // off-screen position, second triggers the CSS transition into view.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        setAnimReady(true)
+        setTimeout(() => {
+          setCurrentIndex(nextIdx)
+          setAnimating(false)
+          setAnimDir(null)
+          setAnimReady(false)
+          pendingIndexRef.current = null
+        }, 380)
+      }))
     }
   }
 
   const handlePrevious = () => {
-    if (currentIndex > 0 && !isTransitioning) {
-      setIsTransitioning(true)
-      setCurrentIndex(prev => prev - 1)
-      setTimeout(() => setIsTransitioning(false), 300)
+    if (currentIndex > 0 && !animating) {
+      const prevIdx = currentIndex - 1
+      pendingIndexRef.current = prevIdx
+      setAnimDir('down')
+      setAnimating(true)
+      setAnimReady(false)
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        setAnimReady(true)
+        setTimeout(() => {
+          setCurrentIndex(prevIdx)
+          setAnimating(false)
+          setAnimDir(null)
+          setAnimReady(false)
+          pendingIndexRef.current = null
+        }, 380)
+      }))
     }
   }
 
@@ -208,7 +215,7 @@ const Feed = () => {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentIndex, articles.length])
+  }, [currentIndex, articles.length, animating])
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -244,7 +251,6 @@ const Feed = () => {
     if (loading) {
       // Only set timeout when actually loading
       timeout = setTimeout(() => {
-        console.error('⏰ Loading timeout')
         setLoading(false)
         setError('Loading took too long. Please try again.')
       }, 15000)
@@ -298,7 +304,7 @@ const Feed = () => {
   return (
     <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* Header - Fixed */}
-      <header className={`flex items-center justify-between whitespace-nowrap px-4 py-3 flex-shrink-0 backdrop-blur ${scrolled ? 'bg-white/80 dark:bg-gray-800/80 border-b border-b-[#e7edf3] dark:border-b-gray-700' : 'bg-white dark:bg-gray-800'}`}>
+      <header className={`relative z-50 flex items-center justify-between whitespace-nowrap px-4 py-3 flex-shrink-0 backdrop-blur ${scrolled ? 'bg-white/80 dark:bg-gray-800/80 border-b border-b-[#e7edf3] dark:border-b-gray-700' : 'bg-white dark:bg-gray-800'}`}>
         <div className="flex items-center gap-4 text-[#0d151c] dark:text-white">
           <div className="size-4">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -393,28 +399,66 @@ const Feed = () => {
               </div>
             )}
 
-            <div className={`transition-all duration-300 ease-in-out ${isTransitioning ? 'opacity-0 transform scale-95' : 'opacity-100 transform scale-100'}`}>
+            {/* Card stack — overflow-hidden clips outgoing/incoming cards during animation */}
+            <div className="relative overflow-hidden rounded-xl" style={{ height: '600px' }}>
 
-              <NewsCard
-                article={filteredArticles[currentIndex]}
-                onNext={handleNext}
-                onPrevious={handlePrevious}
-                onShowComments={handleShowComments}
-                showNavigation={true}
-                isFirst={currentIndex === 0}
-                isLast={currentIndex === filteredArticles.length - 1}
-              />
+              {/* Outgoing (current) card — slides up or down off screen */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  zIndex: 2,
+                  transition: animReady ? 'transform 380ms cubic-bezier(0.4,0,0.2,1)' : 'none',
+                  transform: animReady
+                    ? (animDir === 'up' ? 'translateY(-110%)' : animDir === 'down' ? 'translateY(110%)' : 'translateY(0)')
+                    : 'translateY(0)',
+                }}
+              >
+                <NewsCard
+                  article={filteredArticles[currentIndex]}
+                  onNext={handleNext}
+                  onPrevious={handlePrevious}
+                  onShowComments={handleShowComments}
+                  showNavigation={true}
+                  isFirst={currentIndex === 0}
+                  isLast={currentIndex === filteredArticles.length - 1}
+                />
+              </div>
+
+              {/* Incoming card — slides in from below (up) or above (down) */}
+              {animating && pendingIndexRef.current !== null && filteredArticles[pendingIndexRef.current] && (
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    zIndex: 1,
+                    pointerEvents: 'none',
+                    transition: animReady ? 'transform 380ms cubic-bezier(0.4,0,0.2,1)' : 'none',
+                    transform: animReady
+                      ? 'translateY(0) scale(1)'
+                      : (animDir === 'up' ? 'translateY(105%) scale(0.97)' : 'translateY(-105%) scale(0.97)'),
+                  }}
+                >
+                  <NewsCard
+                    article={filteredArticles[pendingIndexRef.current]}
+                    onNext={handleNext}
+                    onPrevious={handlePrevious}
+                    onShowComments={handleShowComments}
+                    showNavigation={true}
+                    isFirst={pendingIndexRef.current === 0}
+                    isLast={pendingIndexRef.current === filteredArticles.length - 1}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Swipe Up Animation - Outside the card if the card is not the last one */}
-            {currentIndex < articles.length - 1 && (
-              <div className="flex flex-col items-center justify-center mt-8 py-4">
-                <div className="animate-bounce mb-2">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Swipe hint — hidden while animating */}
+            {!animating && currentIndex < filteredArticles.length - 1 && (
+              <div className="flex flex-col items-center justify-center mt-6 py-2">
+                <div className="animate-bounce mb-1">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                   </svg>
                 </div>
-                <p className="text-gray-400 text-sm font-medium">Swipe up</p>
+                <p className="text-gray-400 text-xs font-medium">Swipe up</p>
               </div>
             )}
           </div>

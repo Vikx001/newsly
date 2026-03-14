@@ -5,6 +5,19 @@ import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { CapacitorHttp } from '@capacitor/core'
 
+// Per-session cache so repeated swipes don't re-fetch article HTML
+const resolvedImageCache = new Map()
+
+const CATEGORY_GRADIENTS = {
+  technology: 'from-blue-900 via-blue-800 to-cyan-900',
+  business: 'from-emerald-900 via-teal-800 to-emerald-900',
+  sports: 'from-orange-900 via-red-800 to-orange-900',
+  science: 'from-violet-900 via-purple-800 to-violet-900',
+  health: 'from-green-900 via-emerald-800 to-teal-900',
+  entertainment: 'from-pink-900 via-rose-800 to-pink-900',
+  politics: 'from-red-900 via-orange-800 to-red-900',
+}
+
 const NewsCard = ({
   article,
   onBookmarkChange,
@@ -22,6 +35,7 @@ const NewsCard = ({
   const [showOriginal, setShowOriginal] = useState(true)
   const [biasAnalysis, setBiasAnalysis] = useState(null)
   const [showBiasAnalysis, setShowBiasAnalysis] = useState(false)
+  const [analyzingBias, setAnalyzingBias] = useState(false)
 
   // Community bias voting state
   const [showBiasVote, setShowBiasVote] = useState(false)
@@ -74,179 +88,119 @@ const NewsCard = ({
 
 
 
-  // Try to resolve a better image from the original article if we only have a flag
+  // Resolve a relevant image via Wikipedia (title-based keyword lookup)
   useEffect(() => {
     setResolvedImage(null)
+    setImageError(false)
+    setImageLoading(true)
+    setImageCredit(null)
     setResolvingImage(false)
 
-    const initial = article?.urlToImage || ''
-    const isFlag = /flagcdn\.com\/w320\/(?:[a-z]{2}|un)\.png/i.test(initial)
-    // Treat some aggregator/CDN placeholders as "bad" so we try to resolve a real image
-    const initialHost = (() => { try { return new URL(initial).hostname.replace(/^www\./,'') } catch { return '' } })()
-    const badHosts = ['news.google.com','gstatic.com','googleusercontent.com','ggpht.com','apple.news','mzstatic.com','flipboard.com','news.yahoo.com','yimg.com','s.yimg.com']
-    const isAggregatorInitial = initial && badHosts.some(d => initialHost === d || initialHost.endsWith(`.${d}`))
-    const looksGeneric = /placeholder|default|generic|og-image|opengraph|brand|logo|card|thumb|sprite/i.test(initial)
-    if (initial && !isFlag && !isAggregatorInitial && !looksGeneric) return
+    const cacheKey = article?.url || article?.title || ''
+    if (!cacheKey) return
 
-    // Prefer the original article URL when available (from RSS description), else fallback to Google News link
-    const targetUrl = article?.originalUrl || article?.url
-    if (!targetUrl) return
+    const isNative = Capacitor.isNativePlatform()
 
-    const fetchHtmlAndExtract = async () => {
+    const resolveImage = async () => {
+      if (resolvedImageCache.has(cacheKey)) {
+        const cached = resolvedImageCache.get(cacheKey)
+        if (cached.url) {
+          setResolvedImage(cached.url)
+          setImageCredit(cached.credit || null)
+        }
+        setImageLoading(false)
+        return
+      }
+
       setResolvingImage(true)
       try {
-        const makeAbs = (u, base) => {
-          try { return new URL(u, base).toString() } catch { return u }
-        }
-        const fetchHtml = async (url) => {
-          if (Capacitor.isNativePlatform()) {
-            const response = await CapacitorHttp.get({ url, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Newsly/1.0)' } })
-            if (typeof response.data === 'string') return response.data
-            return ''
-          } else {
-            const proxied = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
-            const resp = await fetch(proxied)
-            if (resp.ok) {
-              const data = await resp.json()
-              return data.contents || ''
-            }
-            return ''
-          }
-        }
-        const extractCandidates = (html, base) => {
-          const candidates = []
-          const push = (x) => { if (x) candidates.push(x) }
-          // OG/Twitter
-          ;[...html.matchAll(/<meta[^>]+(?:property|name)=["']og:image(?::secure_url|:url)?["'][^>]+content=["']([^"']+)["'][^>]*>/ig)]
-            .forEach(m => push(m[1]))
-          ;[...html.matchAll(/<meta[^>]+(?:property|name)=["']twitter:image(?::src)?["'][^>]+content=["']([^"']+)["'][^>]*>/ig)]
-            .forEach(m => push(m[1]))
-          // JSON-LD
-          const ldMatches = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/ig)]
-          for (const lm of ldMatches) {
-            try {
-              const json = JSON.parse(lm[1].trim())
-              const pushImage = (img) => {
-                if (!img) return
-                if (typeof img === 'string') push(img)
-                else if (Array.isArray(img)) img.forEach(x => pushImage(x))
-                else if (typeof img === 'object' && img.url) push(img.url)
-              }
-              if (Array.isArray(json)) json.forEach(obj => pushImage(obj?.image))
-              else pushImage(json?.image)
-            } catch {}
-          }
-          // rel=image_src
-          const linkMatch = html.match(/<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["'][^>]*>/i)
-          if (linkMatch) push(linkMatch[1])
-          // srcset highest-res
-          const srcsetMatch = html.match(/<img[^>]+srcset=["']([^"']+)["'][^>]*>/i)
-          if (srcsetMatch) {
-            try {
-              const parts = srcsetMatch[1].split(',').map(s => s.trim())
-              let best = null, bestW = 0
-              parts.forEach(p => {
-                const m = p.match(/\s*(\S+)\s+(\d+)w/)
-                if (m) { const url = m[1]; const w = parseInt(m[2], 10); if (w > bestW) { bestW = w; best = url } }
-              })
-              if (best) push(best)
-            } catch {}
-          }
-          // fallback first absolute <img>
-          const imgMatch = html.match(/<img[^>]+src=["'](https?:\/\/[^"']+\.(?:jpg|jpeg|png|gif|webp|avif)[^"']*)["'][^>]*>/i)
-          if (imgMatch) push(imgMatch[1])
+        const title = (article?.title || '').trim()
 
-          // Canonical
-          const canon = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["'][^>]*>/i) ||
-                        html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["'][^>]*>/i) ||
-                        html.match(/<link[^>]+rel=["']amphtml["'][^>]+href=["']([^"']+)["'][^>]*>/i)
-
-          const cleaned = candidates
-            .filter(Boolean)
-            .map(s => s.replace(/&amp;/g, '&'))
-            .map(s => s.startsWith('//') ? `https:${s}` : s)
-            .map(s => makeAbs(s, base))
-            .filter(u => !/^data:/i.test(u))
-            .filter(u => !/(sprite|logo|icon|favicon|placeholder|default)/i.test(u))
-          return { images: cleaned, canonical: canon ? makeAbs(canon[1], base) : null }
+        // Extract the most informative keywords from the article title for Wikipedia lookup.
+        const buildWikiQuery = (t) => {
+          const stopWords = new Set([
+            'a','an','the','and','or','but','in','on','at','to','for','of','with','by','from',
+            'is','are','was','were','be','been','has','have','had','will','can','as','up','it',
+            'its','this','that','these','those','he','she','they','we','you','i','not','no',
+            'vs','vs.','new','says','says','after','amid','over','like','just','more','than',
+            'buys','sells','holds','stake','shares','stock','fund','percent','quarter','fiscal',
+            'price','market','report','today','week','year','million','billion','trillion','lp',
+            'inc','corp','llc','plc','ltd','company','companies','group','holdings','partners',
+          ])
+          return t
+            .replace(/\s[-–|]\s.*$/, '')          // drop " - Publisher Name" suffix
+            .replace(/\$[A-Z]+/g, '')             // strip stock tickers like $STX
+            .replace(/[^a-zA-Z0-9 ]/g, ' ')       // strip punctuation
+            .split(/\s+/)
+            .filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()))
+            .slice(0, 5)                           // keep top 5 keywords
+            .join(' ')
         }
 
-        const aggregators = ['news.google.com','apple.news','flipboard.com','news.yahoo.com','t.co','feedburner.com','feedproxy.google.com']
-        const startUrl = targetUrl
-        const startHtml = await fetchHtml(startUrl)
-        if (!startHtml) {
-          // If we couldn't fetch the page (CORS, network), still try Openverse as a last resort
+        // Wikipedia MediaWiki search API — search for articles and return the first with a thumbnail.
+        // Uses generator=search+pageimages in a single request, which is far more reliable
+        // than exact-title lookups (handles disambiguation, company names, financial topics, etc.)
+        const fetchWikipediaImage = async (t) => {
+          const query = buildWikiQuery(t)
+          if (!query) return null
+          const apiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=8&prop=pageimages&pithumbsize=800&piprop=thumbnail&format=json&origin=*`
+          const headers = { 'Api-User-Agent': 'Newsly/2.0 (newsly.app)' }
           try {
-            const title = (article?.title || '').replace(/\s+/g, ' ').trim()
-            const host = (() => { try { return new URL(targetUrl || '').hostname.replace(/^www\./,'') } catch { return '' } })()
-            const q = [title, host].filter(Boolean).join(' ')
-            const ovUrl = `https://api.openverse.engineering/v1/images/?q=${encodeURIComponent(q)}&page_size=8&categories=photograph`
-            const resp = await fetch(ovUrl)
-            if (resp.ok) {
-              const data = await resp.json()
-              const pick = (data?.results || [])
-                .filter(x => x && (x.url || x.thumbnail))
-                .filter(x => (x.width || 0) >= 800 || (x.height || 0) >= 600)
-                .find(Boolean)
-              if (pick) {
-                setResolvedImage(pick.url || pick.thumbnail)
-                setImageCredit({ provider: 'Openverse', creator: pick.creator, license: pick.license, url: pick.foreign_landing_url || pick.url })
+            let data
+            if (isNative) {
+              // CapacitorHttp bypasses WebView CORS/network restrictions on Android
+              const res = await CapacitorHttp.get({ url: apiUrl, headers })
+              if (res.status !== 200) return null
+              data = res.data
+            } else {
+              const res = await fetch(apiUrl, { headers })
+              if (!res.ok) return null
+              data = await res.json()
+            }
+            const pages = Object.values(data?.query?.pages || {})
+            // Pages come back in random order; sort by index (search relevance rank)
+            pages.sort((a, b) => (a.index ?? 99) - (b.index ?? 99))
+            for (const page of pages) {
+              const src = page?.thumbnail?.source
+              if (src) {
+                const hiRes = src.replace(/\/\d+px-/, '/800px-')
+                const pageTitle = encodeURIComponent(page.title.replace(/ /g, '_'))
+                return {
+                  url: hiRes,
+                  credit: {
+                    provider: 'Wikipedia',
+                    creator: 'Wikimedia Commons',
+                    license: 'CC',
+                    url: `https://en.wikipedia.org/wiki/${pageTitle}`
+                  }
+                }
               }
             }
-          } catch {}
-          return
-        }
-        const { images: firstBatch, canonical } = extractCandidates(startHtml, startUrl)
-        let all = firstBatch
-
-        if (canonical) {
-          try {
-            const startHost = new URL(startUrl).hostname.replace(/^www\./,'')
-            const canonHost = new URL(canonical).hostname.replace(/^www\./,'')
-            if (canonHost !== startHost || aggregators.includes(startHost)) {
-              const canonHtml = await fetchHtml(canonical)
-              if (canonHtml) {
-                const { images: secondBatch } = extractCandidates(canonHtml, canonical)
-                all = [...all, ...secondBatch]
-              }
-            }
-          } catch {}
+          } catch (e) {
+            console.error('Wikipedia image fetch failed:', e)
+          }
+          return null
         }
 
-        // Pick first viable
-        const found = all.find(Boolean)
-        if (found) {
-          setResolvedImage(found)
+        const result = await fetchWikipediaImage(title)
+        if (result) {
+          resolvedImageCache.set(cacheKey, result)
+          setResolvedImage(result.url)
+          setImageCredit(result.credit)
         } else {
-          // Openverse fallback (no key). Try to find a topical photograph.
-          try {
-            const title = (article?.title || '').replace(/\s+/g, ' ').trim()
-            const host = (() => { try { return new URL(article?.url || '').hostname.replace(/^www\./,'') } catch { return '' } })()
-            const q = [title, host].filter(Boolean).join(' ')
-            const ovUrl = `https://api.openverse.engineering/v1/images/?q=${encodeURIComponent(q)}&page_size=8&categories=photograph`
-            const resp = await fetch(ovUrl)
-            if (resp.ok) {
-              const data = await resp.json()
-              const pick = (data?.results || [])
-                .filter(x => x && (x.url || x.thumbnail))
-                .filter(x => (x.width || 0) >= 800 || (x.height || 0) >= 600)
-                .find(Boolean)
-              if (pick) {
-                setResolvedImage(pick.url || pick.thumbnail)
-                setImageCredit({ provider: 'Openverse', creator: pick.creator, license: pick.license, url: pick.foreign_landing_url || pick.url })
-              }
-            }
-          } catch {}
+          resolvedImageCache.set(cacheKey, { url: null, credit: null })
         }
       } catch (e) {
-        console.log('resolve image failed:', e)
+        // silently fall through to gradient
       } finally {
         setResolvingImage(false)
       }
     }
 
-    fetchHtmlAndExtract()
+    resolveImage()
   }, [article])
+
+
 
 
   useEffect(() => {
@@ -606,112 +560,29 @@ const NewsCard = ({
   const totalBiasVotes = (biasVotes?.biased || 0) + (biasVotes?.nonBiased || 0)
 
   const analyzeBias = async () => {
-    if (biasAnalysis && !showBiasAnalysis) {
-      setShowBiasAnalysis(true)
-      return
-    }
-
-    if (biasAnalysis && showBiasAnalysis) {
-      setShowBiasAnalysis(false)
-      return
-    }
+    if (biasAnalysis && !showBiasAnalysis) { setShowBiasAnalysis(true); return }
+    if (biasAnalysis && showBiasAnalysis) { setShowBiasAnalysis(false); return }
 
     setAnalyzingBias(true)
-
     try {
-      const title = (article.title || '').toLowerCase()
-      const description = (article.description || '').toLowerCase()
-      const textToAnalyze = `${title}\n\n${description}`
-
-      const enhanced = JSON.parse(localStorage.getItem('newsly_enhanced_bias') || 'false')
-
-      // Base keyword buckets
-      const biasKeywords = {
-        political: ['liberal', 'conservative', 'left-wing', 'right-wing'],
-        emotional: ['shocking', 'outrageous', 'devastating', 'incredible'],
-        sensational: ['breaking', 'exclusive', 'bombshell', 'scandal'],
-        opinion: ['should', 'must', 'obviously', 'clearly']
-      }
-
-      let biasScore = 0
-      let detectedBias = []
-
-      if (enhanced) {
-        // Enhanced heuristic with weights and extras
-        const buckets = {
-          political: { words: biasKeywords.political, w: 12 },
-          emotional: { words: biasKeywords.emotional, w: 10 },
-          sensational: { words: biasKeywords.sensational, w: 10 },
-          opinion: { words: biasKeywords.opinion, w: 8 }
-        }
-        const addMatches = (type, keyword, count) => {
-          if (!count) return
-          const entry = detectedBias.find(d => d.type === type)
-          if (entry) {
-            entry.matches.push(keyword)
-          } else {
-            detectedBias.push({ type, matches: [keyword] })
-          }
-        }
-        Object.entries(buckets).forEach(([type, { words, w }]) => {
-          words.forEach(word => {
-            const re = new RegExp(`\\b${word.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'g')
-            const matches = (textToAnalyze.match(re) || []).length
-            if (matches > 0) {
-              biasScore += matches * w
-              // extra weight if in title
-              if (title.includes(word)) biasScore += w
-              addMatches(type, word, matches)
-            }
-          })
-        })
-        // Dampeners and amplifiers
-        const hedges = ['allegedly', 'reportedly', 'according to', 'claims']
-        hedges.forEach(h => { if (textToAnalyze.includes(h)) biasScore -= 5 })
-        const exclamations = (textToAnalyze.match(/!/g) || []).length
-        biasScore += Math.min(exclamations, 3) * 3
-      } else {
-        // Original lightweight heuristic
-        Object.entries(biasKeywords).forEach(([type, keywords]) => {
-          const matches = keywords.filter(keyword => textToAnalyze.includes(keyword))
-          if (matches.length > 0) {
-            biasScore += matches.length * 15
-            detectedBias.push({ type, matches })
-          }
-        })
-      }
-
-      const percentage = Math.max(0, Math.min(biasScore, 100))
-
-      setBiasAnalysis({
-        biasPercentage: percentage,
-        biasLevel: percentage < 20 ? 'Low' : percentage < 50 ? 'Medium' : 'High',
-        detectedBias,
-        analysis: `This article shows ${percentage}% bias indicators.${enhanced ? ' (enhanced)' : ''}`
+      const text = `${article.title || ''}\n\n${article.description || ''}`
+      const resp = await fetch('/api/ai/bias-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, source: article.source?.name || '' })
       })
-      setShowBiasAnalysis(true)
-
-    } catch (error) {
-      console.error('Bias analysis failed:', error)
-    } finally {
-      setAnalyzingBias(false)
-    }
+      if (resp.ok) {
+        const data = await resp.json()
+        setBiasAnalysis(data)
+        setShowBiasAnalysis(true)
+      }
+    } catch {}
+    finally { setAnalyzingBias(false) }
   }
 
   const displayContent = showOriginal ? article : (translatedContent || article)
 
-  // Web-only image proxy for better hotlink reliability
-  const isNative = Capacitor.isNativePlatform()
-  const finalImageSrc = (() => {
-    const src = resolvedImage || article.urlToImage
-    if (!src) return null
-    if (isNative) return src
-    // Avoid double-proxying, only proxy http(s) images
-    if (/^https?:\/\//i.test(src)) {
-      return `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=1200&h=800&fit=cover&a=attention`
-    }
-    return src
-  })()
+  const finalImageSrc = resolvedImage || null
 
   return (
     <article
@@ -730,7 +601,7 @@ const NewsCard = ({
     >
       {/* Background Image */}
       <div className="absolute inset-0">
-        {(finalImageSrc && !/flagcdn\.com\/w320\//i.test(finalImageSrc) && !imageError) ? (
+        {(finalImageSrc && !imageError) ? (
           <img
             src={finalImageSrc}
             alt={article.title}
@@ -740,7 +611,7 @@ const NewsCard = ({
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-gray-700 dark:to-gray-600 animate-pulse"></div>
+          <div className={`w-full h-full bg-gradient-to-br ${CATEGORY_GRADIENTS[article?.category] || 'from-slate-800 via-gray-700 to-slate-900'}`}></div>
         )}
         {/* Image shimmer overlay while loading/resolving */}
         {(imageLoading || resolvingImage) && (
@@ -748,21 +619,20 @@ const NewsCard = ({
         )}
         {/* Dark overlay for text readability */}
         <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+        {/* Image attribution – shown only when picture is from Openverse */}
+        {imageCredit && (
+          <div className="absolute bottom-2 right-2 z-10 text-[10px] text-white/75 drop-shadow">
+            Image: {imageCredit.provider}
+            {imageCredit.creator ? ` · ${imageCredit.creator}` : ''}
+            {imageCredit.license ? ` · ${String(imageCredit.license).toUpperCase()}` : ''}
+          </div>
+        )}
       </div>
 
       {/* Top Bar with Logo and Actions */}
       <div className="relative z-10 flex items-center justify-between p-4">
         {/* Newsly Logo */}
         <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg">
-        {/* Image attribution overlay */}
-        {imageCredit && (
-          <div className="absolute bottom-2 right-2 text-[10px] md:text-xs text-white/90 drop-shadow-sm">
-            Image: {imageCredit.provider}
-            {imageCredit.creator ? ` • ${imageCredit.creator}` : ''}
-            {imageCredit.license ? ` • ${String(imageCredit.license).toUpperCase()}` : ''}
-          </div>
-        )}
-
           <div className="size-4">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -961,6 +831,34 @@ const NewsCard = ({
                   <div className="h-2 bg-red-500" style={{ width: `${computeBiasPct(biasVotes.biased, biasVotes.nonBiased) ?? 0}%` }}></div>
                 </div>
                 <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">Based on {(Number(biasVotes.biased || 0) + Number(biasVotes.nonBiased || 0))} vote{(Number(biasVotes.biased || 0) + Number(biasVotes.nonBiased || 0)) === 1 ? '' : 's'}.</p>
+              </div>
+
+              {/* AI Bias Analysis */}
+              <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                <button
+                  onClick={analyzeBias}
+                  disabled={analyzingBias}
+                  className="w-full text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 py-1"
+                >
+                  {analyzingBias ? 'Analyzing…' : biasAnalysis ? (showBiasAnalysis ? 'Hide AI Analysis' : 'Show AI Analysis') : 'Run AI Bias Analysis'}
+                </button>
+                {showBiasAnalysis && biasAnalysis && (
+                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-900 dark:text-white">AI Analysis</span>
+                      <span className={`px-2 py-0.5 rounded-full font-medium ${
+                        biasAnalysis.biasLevel === 'Low' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        biasAnalysis.biasLevel === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>{biasAnalysis.biasLevel} · {biasAnalysis.biasPercentage}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-2">
+                      <div className={`h-1.5 rounded-full ${biasAnalysis.biasPercentage < 20 ? 'bg-green-500' : biasAnalysis.biasPercentage < 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                        style={{ width: `${biasAnalysis.biasPercentage}%` }}></div>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-300">{biasAnalysis.analysis}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

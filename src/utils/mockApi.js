@@ -3,48 +3,49 @@ import countryLanguage from 'country-language'
 import countryList from 'react-select-country-list'
 
 // Mock API for development - fetches Google News RSS feeds directly from frontend
-export const fetchGoogleNews = async (categories, country = 'global') => {
-  console.log('🌍 fetchGoogleNews called with:', { categories, country })
-  
-  const getCategoryUrlsForCountry = (country) => {
-    // Dynamic country parameter generation using library
-    let countryParam
-    
-    if (country === 'global') {
-      countryParam = 'hl=en-US&gl=US&ceid=US:en'
-    } else {
-      try {
-        // Get primary language for the country
-        const languages = countryLanguage.getCountryLanguages(country.toUpperCase())
-        const primaryLang = languages && languages[0] ? languages[0] : null
-        
-        const upperCountry = country.toUpperCase()
-        
-        if (primaryLang && primaryLang.iso639_1) {
-          // Use the primary language of the country
-          const langCode = `${primaryLang.iso639_1}-${upperCountry}`
-          countryParam = `hl=${langCode}&gl=${upperCountry}&ceid=${upperCountry}:${primaryLang.iso639_1}`
-        } else {
-          // Fallback to English for that country
-          countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
-        }
-      } catch (error) {
-        console.log(`Language lookup failed for ${country}, using English fallback`)
-        const upperCountry = country.toUpperCase()
+
+export const getCategoryUrlsForCountry = (country) => {
+  // Dynamic country parameter generation using library
+  let countryParam
+
+  if (country === 'global') {
+    countryParam = 'hl=en-US&gl=US&ceid=US:en'
+  } else {
+    try {
+      const languages = countryLanguage.getCountryLanguages(country.toUpperCase())
+      const upperCountry = country.toUpperCase()
+
+      // Prefer English when it's an official language of the country (e.g. India,
+      // Nigeria, Singapore) — avoids alphabetical first-pick giving Bengali for IN,
+      // Afrikaans for ZA, etc.  Fall back to the first listed language otherwise.
+      const englishEntry = languages && languages.find(l => l.iso639_1 === 'en')
+      const primaryLang = englishEntry || (languages && languages[0]) || null
+
+      if (primaryLang && primaryLang.iso639_1) {
+        const langCode = `${primaryLang.iso639_1}-${upperCountry}`
+        countryParam = `hl=${langCode}&gl=${upperCountry}&ceid=${upperCountry}:${primaryLang.iso639_1}`
+      } else {
         countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
       }
-    }
-    
-    return {
-      'technology': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
-      'business': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
-      'sports': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
-      'science': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y0RvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
-      'health': `https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?${countryParam}`,
-      'entertainment': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
-      'general': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`
+    } catch (error) {
+      const upperCountry = country.toUpperCase()
+      countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
     }
   }
+
+  return {
+    'technology': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'business': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'sports': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'science': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y0RvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'health': `https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?${countryParam}`,
+    'entertainment': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'politics': `https://news.google.com/rss/search?q=politics&${countryParam}`,
+    'general': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`
+  }
+}
+
+export const fetchGoogleNews = async (categories, country = 'global') => {
 
   const categoryUrls = getCategoryUrlsForCountry(country)
   const allArticles = []
@@ -52,9 +53,6 @@ export const fetchGoogleNews = async (categories, country = 'global') => {
   for (const category of categories) {
     try {
       const url = categoryUrls[category] || categoryUrls['general']
-      console.log(`Fetching ${category} news from Google News for ${country}...`)
-      console.log('URL:', url)
-      
       // Try multiple CORS proxies sequentially until one works
       const proxyBuilders = [
         (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
@@ -87,7 +85,6 @@ export const fetchGoogleNews = async (categories, country = 'global') => {
 
       if (xmlContent) {
         const articles = parseGoogleNewsXML(xmlContent, category, country)
-        console.log(`Found ${articles.length} articles for ${category} in ${country}`)
         allArticles.push(...articles)
       } else {
         console.error(`All proxies failed for ${category} (${country}). Last error:`, lastError?.message || lastError)
@@ -97,7 +94,6 @@ export const fetchGoogleNews = async (categories, country = 'global') => {
     }
   }
 
-  console.log(`Total articles fetched for ${country}:`, allArticles.length)
   return { articles: allArticles }
 }
 

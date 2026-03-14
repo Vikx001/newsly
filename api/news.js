@@ -16,8 +16,6 @@ export default async function handler(req, res) {
 
   try {
     const { categories, source = 'google' } = req.query
-    console.log('API called with categories:', categories, 'source:', source)
-    
     if (!categories) {
       res.status(400).json({ error: 'Categories parameter is required' })
       return
@@ -27,9 +25,7 @@ export default async function handler(req, res) {
     let allArticles = []
 
     // Always use Google News for now since it's free
-    console.log('Fetching from Google News for categories:', categoryList)
     allArticles = await fetchFromGoogleNews(categoryList)
-    console.log('Total articles fetched:', allArticles.length)
 
     // Remove duplicates and filter articles - no limit here
     const uniqueArticles = allArticles
@@ -42,8 +38,6 @@ export default async function handler(req, res) {
         !article.title.includes('[Removed]')
       )
     // Remove any slice() limit here too
-
-    console.log('Unique articles after filtering:', uniqueArticles.length)
 
     res.status(200).json({
       articles: uniqueArticles, // No limit
@@ -74,8 +68,6 @@ async function fetchFromGoogleNews(categoryList) {
 
   const promises = categoryList.map(async (category) => {
     const url = categoryUrls[category] || categoryUrls['general']
-    console.log(`Fetching ${category} from:`, url)
-    
     try {
       const response = await fetch(url, {
         headers: {
@@ -89,9 +81,7 @@ async function fetchFromGoogleNews(categoryList) {
       }
       
       const xmlText = await response.text()
-      console.log(`XML length for ${category}:`, xmlText.length)
-      const articles = await parseGoogleNewsXML(xmlText, category) // Add await here
-      console.log(`Parsed ${articles.length} articles for ${category}`)
+      const articles = await parseGoogleNewsXML(xmlText, category)
       return articles
     } catch (error) {
       console.error(`Error fetching Google News for ${category}:`, error)
@@ -100,7 +90,7 @@ async function fetchFromGoogleNews(categoryList) {
   })
 
   const results = await Promise.all(promises)
-  const allArticles = results.flat()
+  return results.flat()
 }
 
 async function parseGoogleNewsXML(xmlText, category) {
@@ -122,11 +112,8 @@ async function parseGoogleNewsXML(xmlText, category) {
       const title = titleMatch[1]
       const description = descMatch ? descMatch[1] : ''
       
-      // Get image using meta tag extraction
+      // Images are resolved client-side; server returns null for urlToImage
       let imageUrl = null
-      if (linkMatch[1]) {
-        imageUrl = await getArticleImage(linkMatch[1], titleMatch[1])
-      }
 
       // Clean description and remove HTML
       const cleanDesc = description.replace(/<[^>]*>/g, '').trim()

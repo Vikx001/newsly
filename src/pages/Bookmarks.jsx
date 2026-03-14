@@ -9,7 +9,7 @@ import { Capacitor } from '@capacitor/core'
 function Bookmarks() {
   const { bookmarks, removeBookmark } = useBookmarks()
   const navigate = useNavigate()
-  const { theme, toggleTheme } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
 
   const handleReadMore = async (article) => {
     try {
@@ -53,7 +53,7 @@ function Bookmarks() {
           onClick={toggleTheme}
           className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#f0f2f5] dark:bg-gray-700 text-[#111418] dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
         >
-          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          {isDark ? <Sun size={20} /> : <Moon size={20} />}
         </button>
       </header>
 

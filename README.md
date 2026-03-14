@@ -18,22 +18,26 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 
 - **📱 Cross-Platform**: Web, Android, working on iOS
 - **🌍 Country Selection**: Get news from 15+ countries with flag indicators
-- **🎯 Genre Selection**: 8 news categories (Technology, World, Business, Sports, Science, Health, Entertainment, Politics)
+- **🎯 Genre Selection**: 8 news categories with animated, color-coded tile grid (Technology, World, Business, Sports, Science, Health, Entertainment, Politics)
 - **📰 Ultra-Short Summaries**: News stories condensed to ~60 words
-- **👆 Swipeable Interface**: Navigate with swipe gestures (mobile) or arrow keys (desktop)
+- **👆 TikTok-style Swipe**: Smooth two-card stack swipe animation with `translateY` transitions (mobile + keyboard)
+- **🖼️ Smart Wikipedia Images**: MediaWiki search+pageimages API with keyword extraction, per-session cache, and CapacitorHttp on Android native
 - **🔖 Bookmarking**: Save articles to read later
-- **🌙 Dark Mode**: Toggle between light and dark themes
+- **🌙 Dark / Light Mode**: Toggleable everywhere — Landing, Genre Selection, Feed, and Settings; defaults to light, persisted to localStorage
 - **💾 No Database**: Everything stored in localStorage
 - **📱 Responsive Design**: Works on all devices
 - **🔄 Real-time News**: Fetches latest news from Google News RSS
 - **🔄 Auto-Refresh**: Automatically refreshes when country is changed
 - **💬 Comments System**: Add and view comments on articles
 - **📤 Share Functionality**: Share articles across platforms
+- **⚙️ Redesigned Settings Page**: Full-page settings with grouped sections, icon pill rows, toggle switches, and bottom-sheet modals
+- **🎨 Redesigned UI**: Overhauled Landing page (hero + feature grid) and Genre Selection (dark tile grid with checkmark badges)
 
 ## 📅 Development Timeline
 
 | Date | Version | Updates |
 |------|---------|---------|
+| 15/03/2026 | v3.0.0 | 🎨 Full UI Overhaul & Bug Fixes<br/>• **TikTok-style swipe animation**: two-card stack with `translateY` transitions, double-rAF two-phase animation, 380 ms cubic-bezier easing.<br/>• **Wikipedia Smart Images**: switched from page/summary to MediaWiki search+pageimages API; keyword extraction strips financial stop words; per-session module-level cache; `CapacitorHttp` on Android native to bypass WebView CORS.<br/>• **Flicker & white-flash fixes**: removed synchronous `setResolvedImage(null)` and `isTransitioning` opacity animation from Feed.<br/>• **Country dropdown z-index fix**: Feed header gets `relative z-50` so selector renders above card stack.<br/>• **Landing page redesign**: dark/light hero layout, 2-column feature grid (Zap / Globe2 / Bookmark / ShieldCheck icons), sun/moon toggle, Skip button.<br/>• **Genre Selection redesign**: dark 2-column square tile grid with per-genre gradient colors, checkmark badge on selected tiles, scale bump, sticky progress bar + CTA.<br/>• **Settings page redesign**: Profile strip with gradient icon, grouped Section cards (rounded-2xl), SettingRow with colored icon pills + Toggle switch, bottom-sheet backdrop-blur modals; sections: Appearance / Feed / Notifications / Account / Support / Danger zone.<br/>• **Theme toggle** added to Landing and Genre Selection (uses existing ThemeContext, defaults to light).<br/>• ~15 miscellaneous bug fixes (Bengali locale, Android build, image cache race conditions, etc.) |
 | 16/08/2025 | v2.3.0 | 🎨 Layout Refresh & Settings Expansion<br/>• New compact header in Feed with country selector, refresh, sort (Personalized/Latest), theme and settings buttons.<br/>• “Swipe up” affordance and smoother card transitions.<br/>• Read Aloud controls and keyboard shortcuts (Arrow Up/Down, Ctrl+Space).<br/>• Community Bias features: analysis panel + vote sheet with local persistence.<br/>• Article translation with LibreTranslate/Lingva fallback.<br/>• Settings additions: Theme, Notifications, Reading font size, Hide paywalled, Default sort, Bookmarks, Subscriptions (stub), Clear history, Feedback, Help & Support, Logout |
 | 16/08/2025 | v2.2.0 | 🖼️ Smart Image Resolver & Reliability<br/>• Prefer original article URL (bypass Google News redirect).<br/>• Extract images from OG/Twitter/JSON‑LD/srcset and follow canonical links.<br/>• Openverse photograph fallback when no image is found.<br/>• Web image proxying for reliability (Weserv).<br/>• Improved handling of placeholder/flag images |
 | 30/01/2025 | v2.1.0 | 🌍 Country Selection Feature<br/>• Added 15+ country support with flag indicators.<br/>• Auto-refresh on country change.<br/>• Visual loading states for country selector.<br/>• Improved refresh button feedback |
@@ -44,70 +48,136 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 ## 🏗️ Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                     │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │   Landing   │  │    Genre    │  │    Feed     │         │
-│  │    Page     │→ │  Selection  │→ │    Page     │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-│                                           ↓                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ Bookmarks   │  │  Settings   │  │ News Cards  │         │
-│  │    Page     │  │   Modal     │  │ Component   │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-├─────────────────────────────────────────────────────────────┤
-│                    State Management                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │   Theme     │  │ Local       │  │   News      │         │
-│  │  Context    │  │ Storage     │  │   State     │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-├─────────────────────────────────────────────────────────────┤
-│                      API Layer                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ Capacitor   │  │   Google    │  │   Country   │         │
-│  │    HTTP     │  │ News RSS    │  │   Selector  │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-├─────────────────────────────────────────────────────────────┤
-│                   Platform Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │     Web     │  │   Android   │  │     iOS     │         │
-│  │  (Browser)  │  │   (APK)     │  │   (IPA)     │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘         │
-└─────────────────────────────────────────────────────────────┘
+╔══════════════════════════════════════════════════════════════════════╗
+║                         NEWSLY ARCHITECTURE                         ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   USER JOURNEY (Page Router)                                         ║
+║   ┌──────────┐   ┌──────────────┐   ┌──────────┐   ┌────────────┐  ║
+║   │ Landing  │──▶│    Genre     │──▶│   Feed   │──▶│ Bookmarks  │  ║
+║   │  Page    │   │  Selection   │   │   Page   │   │   Page     │  ║
+║   └──────────┘   └──────────────┘   └────┬─────┘   └────────────┘  ║
+║                                          │                           ║
+║                                    ┌─────▼──────┐                   ║
+║                                    │  Settings  │                   ║
+║                                    │    Page    │                   ║
+║                                    └────────────┘                   ║
+║                                                                      ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   SHARED COMPONENTS                                                  ║
+║   ┌─────────────┐  ┌──────────────┐  ┌──────────────┐              ║
+║   │  HeaderBar  │  │   NewsCard   │  │CommentsCard  │              ║
+║   │ (nav+theme) │  │(swipe+image) │  │(local votes) │              ║
+║   └─────────────┘  └──────────────┘  └──────────────┘              ║
+║   ┌─────────────┐  ┌──────────────┐                                 ║
+║   │  Country    │  │  Settings    │                                  ║
+║   │  Selector   │  │   Modal      │                                  ║
+║   └─────────────┘  └──────────────┘                                 ║
+║                                                                      ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   STATE & CONTEXT                                                    ║
+║   ┌──────────────────┐   ┌──────────────────┐                       ║
+║   │  ThemeContext    │   │  BookmarkContext  │                       ║
+║   │ isDark/toggle    │   │  bookmarks[]     │                       ║
+║   │ → localStorage   │   │  → localStorage  │                       ║
+║   └──────────────────┘   └──────────────────┘                       ║
+║                                                                      ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   UTILS / SERVICES                                                   ║
+║   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          ║
+║   │  api.js  │  │ mockApi  │  │storage.js│  │speech.js │          ║
+║   │ fetch +  │  │ XML/RSS  │  │ get/set  │  │ TTS read │          ║
+║   │ cap http │  │ parser   │  │ helpers  │  │  aloud   │          ║
+║   └──────────┘  └──────────┘  └──────────┘  └──────────┘          ║
+║   ┌──────────┐  ┌──────────┐                                        ║
+║   │genres.js │  │constants │                                        ║
+║   │ tile map │  │  & flags │                                        ║
+║   └──────────┘  └──────────┘                                        ║
+║                                                                      ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   EXTERNAL APIs                                                      ║
+║   ┌────────────────────┐   ┌───────────────────────┐               ║
+║   │  Google News RSS   │   │   MediaWiki API        │               ║
+║   │  (per country +    │   │  search+pageimages     │               ║
+║   │   genre topic URL) │   │  (Wikipedia images)    │               ║
+║   └────────────────────┘   └───────────────────────┘               ║
+║   ┌────────────────────┐   ┌───────────────────────┐               ║
+║   │  allorigins.win    │   │   Vercel Serverless    │               ║
+║   │  (CORS proxy, web) │   │  api/news.js +        │               ║
+║   └────────────────────┘   │  api/ai/bias-analysis │               ║
+║                             └───────────────────────┘               ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   PLATFORM LAYER (Capacitor 5)                                       ║
+║   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐           ║
+║   │     Web      │   │   Android    │   │     iOS      │           ║
+║   │  (Vite dist) │   │  (APK/AAB)   │   │  (planned)   │           ║
+║   │  Vercel CDN  │   │CapacitorHttp │   │              │           ║
+║   └──────────────┘   └──────────────┘   └──────────────┘           ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
 ```
 
 ## 🔄 Data Flow Diagram
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│    User     │    │   React     │    │    API      │
-│ Interaction │    │ Components  │    │   Layer     │
-└──────┬──────┘    └──────┬──────┘    └──────┬──────┘
-       │                  │                  │
-       │ 1. Select Country│                  │
-       ├─────────────────→│                  │
-       │                  │ 2. Auto Refresh  │
-       │                  ├─────────────────→│
-       │                  │                  │
-       │ 3. Select Genre  │                  │
-       ├─────────────────→│                  │
-       │                  │ 4. Fetch News    │
-       │                  ├─────────────────→│
-       │                  │                  │
-       │                  │ 5. Parse RSS     │
-       │                  │←─────────────────┤
-       │                  │                  │
-       │ 6. Display Cards │                  │
-       │←─────────────────┤                  │
-       │                  │                  │
-       │ 7. Swipe/Navigate│                  │
-       ├─────────────────→│                  │
-       │                  │                  │
-       │ 8. Bookmark/Share│                  │
-       ├─────────────────→│                  │
-       │                  │ 9. Save Local    │
-       │                  ├─────────────────→│
+  User Action               React Layer                  External / Native
+  ─────────────────────────────────────────────────────────────────────────
+
+  [ Launch App ]
+        │
+        ▼
+  Landing.jsx ──(Get Started)──▶ GenreSelection.jsx
+                                        │
+                              (Confirm genres → localStorage)
+                                        │
+                                        ▼
+                                    Feed.jsx
+                                   ┌────┴────────────────────────────┐
+                                   │  fetchNews(genre, country)       │
+                                   │  ┌─────────────────────────┐    │
+                                   │  │  Native (Capacitor)?    │    │
+                                   │  │  YES → CapacitorHttp    │──▶ Google News RSS
+                                   │  │  NO  → allorigins proxy │──▶ Google News RSS
+                                   │  └─────────────────────────┘    │
+                                   │           │                      │
+                                   │    Parse XML (mockApi.js)        │
+                                   │    Build article[]               │
+                                   └────────────────────────────── ──┘
+                                        │
+                              Render NewsCard stack (z-indexed)
+                                        │
+          ┌───────────────┬─────────────┼──────────────┬──────────────┐
+          │               │             │              │              │
+      Swipe up/dn    Tap Bookmark   Tap Share      Long-press      Tap 🌐
+          │               │             │              │              │
+    TikTok anim    BookmarkContext  navigator      CommentsCard    Open URL
+    translateY     → localStorage   .share()      local votes   (browser/app)
+          │
+    Wikipedia image pipeline:
+      buildWikiQuery(title)
+      → MediaWiki search+pageimages API
+      → CapacitorHttp (native) / fetch (web)
+      → resolvedImageCache (module Map)
+      → <img> in NewsCard
+
+
+  [ Country Selector ]
+        │
+   CountrySelector.jsx (z-50 above card stack)
+        │
+   setSelectedCountry → re-fetch RSS for new hl/gl params
+
+
+  [ Settings Page ]
+        │
+   ThemeContext.toggleTheme() → document.classList / localStorage
+   storage.js helpers → hidePaywalled, sortMode, notifications
+   Bottom-sheet modals (Help / Subscriptions / Clear History / Logout)
 ```
 
 ## 🛠️ Tech Stack
@@ -140,42 +210,67 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 
 ```
 newsly/
-├── src/
-│   ├── components/              # Reusable UI components
-│   │   ├── HeaderBar.jsx       # Navigation header with theme toggle
-│   │   ├── NewsCard.jsx        # Individual news article card
-│   │   ├── SettingsModal.jsx   # Settings overlay modal
-│   │   └── CountrySelector.jsx # Country selection dropdown
-│   ├── contexts/               # React context providers
-│   │   └── ThemeContext.jsx    # Dark/light theme management
-│   ├── pages/                  # Route-based page components
-│   │   ├── Landing.jsx         # Welcome/onboarding screen
-│   │   ├── GenreSelection.jsx  # Category selection interface
-│   │   ├── Feed.jsx           # Main news feed with swipe
-│   │   └── Bookmarks.jsx      # Saved articles view
-│   ├── utils/                  # Helper functions and utilities
-│   │   ├── api.js             # News fetching logic
-│   │   ├── mockApi.js         # RSS parsing and mock data
-│   │   ├── genres.js          # Category definitions
-│   │   ├── storage.js         # localStorage utilities
-│   │   └── countries.js       # Country definitions and flags
-│   ├── App.jsx                # Main app component with routing
-│   └── main.jsx               # React app entry point
-├── android/                    # Android Capacitor project
+│
+├── src/                              # React application source
+│   │
+│   ├── App.jsx                       # Root component — React Router route definitions
+│   ├── main.jsx                      # Entry point — mounts React + global CSS
+│   ├── index.css                     # Tailwind base imports + custom global styles
+│   │
+│   ├── pages/                        # Full-screen route pages
+│   │   ├── Landing.jsx               # Hero onboarding — feature grid, dark/light toggle
+│   │   ├── GenreSelection.jsx        # 2-col gradient tile grid, progress bar, theme toggle
+│   │   ├── Feed.jsx                  # News feed — TikTok swipe stack, country selector
+│   │   ├── Settings.jsx              # Full-page settings — sections, toggles, modals
+│   │   ├── Bookmarks.jsx             # Saved articles list
+│   │   └── UnderConstruction.jsx     # Placeholder stub page
+│   │
+│   ├── components/                   # Reusable UI building blocks
+│   │   ├── NewsCard.jsx              # Article card — Wikipedia image pipeline, swipe
+│   │   ├── HeaderBar.jsx             # Top nav — logo, theme toggle, back button
+│   │   ├── CountrySelector.jsx       # Flag dropdown (z-50, above card stack)
+│   │   ├── CommentsCard.jsx          # Inline comment thread with local persistence
+│   │   └── SettingsModal.jsx         # Legacy overlay modal (superseded by Settings page)
+│   │
+│   ├── contexts/                     # React context providers
+│   │   ├── ThemeContext.jsx          # isDark state, toggleTheme(), localStorage sync
+│   │   └── BookmarkContext.jsx       # bookmarks[], add/remove, localStorage sync
+│   │
+│   └── utils/                        # Pure helpers and service modules
+│       ├── api.js                    # fetchNews() — platform-aware RSS fetch + parse
+│       ├── mockApi.js                # XML → article[] parser, RSS utilities
+│       ├── genres.js                 # Genre definitions + GENRE_STYLES gradient map
+│       ├── storage.js                # Typed localStorage get/set helpers
+│       ├── constants.js              # App-wide constants (countries, flags, etc.)
+│       ├── speech.js                 # Web Speech API — read-aloud TTS wrapper
+│       └── __tests__/
+│           └── countryNews.test.js   # Jest unit tests for country news fetching
+│
+├── api/                              # Vercel serverless functions
+│   ├── news.js                       # /api/news — server-side RSS fetch (CORS bypass)
+│   └── ai/
+│       └── bias-analysis.js          # /api/ai/bias-analysis — AI bias scoring endpoint
+│
+├── android/                          # Capacitor Android project (auto-generated)
 │   ├── app/
 │   │   ├── src/main/
-│   │   │   ├── AndroidManifest.xml
-│   │   │   └── assets/public/  # Built web assets
+│   │   │   ├── AndroidManifest.xml   # Permissions: internet, vibrate
+│   │   │   ├── java/com/newsly/app/
+│   │   │   │   └── MainActivity.java # Capacitor bridge entry point
+│   │   │   └── res/                  # Icons, splash screens, layouts
 │   │   └── build.gradle
-│   └── capacitor.build.gradle
-├── ios/                       # iOS Capacitor project (if added)
-├── public/                    # Static web assets
-├── api/                       # Serverless functions (unused)
-├── capacitor.config.json      # Capacitor configuration
-├── package.json              # Dependencies and scripts
-├── tailwind.config.js        # Tailwind CSS configuration
-├── vite.config.js           # Vite build configuration
-└── README.md                # This file
+│   ├── capacitor.build.gradle
+│   ├── variables.gradle              # SDK version pins
+│   └── local.properties              # sdk.dir path (machine-local, gitignored)
+│
+├── index.html                        # Vite HTML shell
+├── vite.config.js                    # Vite build config
+├── tailwind.config.js                # Tailwind theme + dark mode: 'class'
+├── postcss.config.js                 # PostCSS (Tailwind + Autoprefixer)
+├── capacitor.config.json             # App ID, webDir, CapacitorHttp plugin config
+├── jest.config.js                    # Jest test runner config
+├── vercel.json                       # Vercel routing / function config
+└── package.json                      # Scripts, dependencies
 ```
 
 ## 🔧 API Architecture

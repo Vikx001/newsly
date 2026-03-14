@@ -6,7 +6,7 @@ import { Sun, Moon, Search, Bookmark, Settings, Volume2, Settings as SettingsIco
 function HeaderBar() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { theme, toggleTheme } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
 
   const isActive = (path) => location.pathname === path
 
@@ -86,7 +86,7 @@ function HeaderBar() {
             onClick={toggleTheme}
             className="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 bg-[#f1f2f4] dark:bg-gray-700 text-[#111418] dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
           >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            {isDark ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </div>
         <button
