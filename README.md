@@ -47,137 +47,195 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 
 ## 🏗️ Architecture Overview
 
+```mermaid
+flowchart TD
+    subgraph Device["📱 Device (Web / Android / iOS)"]
+        direction TB
+        subgraph Pages["Page Router — React Router v6"]
+            Landing["Landing\n(hero + feature grid)"]
+            Genre["GenreSelection\n(tile grid + progress bar)"]
+            Feed["Feed\n(TikTok swipe stack)"]
+            Bookmarks["Bookmarks\n(saved articles)"]
+            Settings["Settings\n(sections + modals)"]
+            Landing -->|Get Started| Genre
+            Genre -->|Confirm genres| Feed
+            Feed -->|nav| Bookmarks
+            Feed -->|nav| Settings
+        end
+
+        subgraph Components["Shared Components"]
+            NewsCard["NewsCard\n(swipe + Wikipedia image)"]
+            HeaderBar["HeaderBar\n(nav + theme toggle)"]
+            CountrySelector["CountrySelector\n(flag dropdown, z-50)"]
+            CommentsCard["CommentsCard\n(local votes)"]
+            SettingsModal["SettingsModal\n(legacy overlay)"]
+        end
+
+        subgraph Contexts["React Context (Global State)"]
+            ThemeCtx["ThemeContext\nisDark / toggleTheme\n→ localStorage"]
+            BookmarkCtx["BookmarkContext\nbookmarks[]\n→ localStorage"]
+        end
+
+        subgraph Utils["Utils & Services"]
+            apiJs["api.js\nfetchNews()\nplatform-aware"]
+            mockApi["mockApi.js\nXML → article[]"]
+            storageJs["storage.js\ntyped get/set helpers"]
+            speechJs["speech.js\nWeb Speech API TTS"]
+            genresJs["genres.js\nGENRE_STYLES gradient map"]
+        end
+
+        Feed --> NewsCard
+        Feed --> HeaderBar
+        Feed --> CountrySelector
+        NewsCard --> CommentsCard
+    end
+
+    subgraph External["☁️ External APIs"]
+        GoogleRSS["Google News RSS\nper country + genre\ntopic URL"]
+        MediaWiki["MediaWiki API\nsearch+pageimages\n(Wikipedia images)"]
+        CORSProxy["allorigins.win\nCORS proxy (web only)"]
+        Vercel["Vercel Serverless\napi/news.js\napi/ai/bias-analysis.js"]
+    end
+
+    subgraph Platform["⚙️ Platform Layer — Capacitor 5"]
+        Web["Web\nVite dist\nVercel CDN"]
+        Android["Android\nAPK / AAB\nCapacitorHttp"]
+        iOS["iOS\n(planned)"]
+    end
+
+    apiJs -->|"Native: CapacitorHttp\n(bypasses WebView CORS)"| GoogleRSS
+    apiJs -->|"Web: fetch via"| CORSProxy --> GoogleRSS
+    NewsCard -->|"buildWikiQuery(title)\nCapacitorHttp / fetch"| MediaWiki
+    Feed -->|"fetchNews"| apiJs
+    apiJs --> mockApi
+
+    Device --> Platform
+    Vercel -.->|"server-side RSS + AI bias"| GoogleRSS
+
+    classDef page fill:#e0f2fe,stroke:#2563eb,color:#0f172a
+    classDef component fill:#f0fdf4,stroke:#16a34a,color:#0f172a
+    classDef context fill:#fef9c3,stroke:#ca8a04,color:#0f172a
+    classDef util fill:#f5f3ff,stroke:#7c3aed,color:#0f172a
+    classDef external fill:#fff7ed,stroke:#ea580c,color:#0f172a
+    classDef platform fill:#f0f4f8,stroke:#94a3b8,color:#0f172a
+
+    class Landing,Genre,Feed,Bookmarks,Settings page
+    class NewsCard,HeaderBar,CountrySelector,CommentsCard,SettingsModal component
+    class ThemeCtx,BookmarkCtx context
+    class apiJs,mockApi,storageJs,speechJs,genresJs util
+    class GoogleRSS,MediaWiki,CORSProxy,Vercel external
+    class Web,Android,iOS platform
 ```
-╔══════════════════════════════════════════════════════════════════════╗
-║                         NEWSLY ARCHITECTURE                         ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   USER JOURNEY (Page Router)                                         ║
-║   ┌──────────┐   ┌──────────────┐   ┌──────────┐   ┌────────────┐  ║
-║   │ Landing  │──▶│    Genre     │──▶│   Feed   │──▶│ Bookmarks  │  ║
-║   │  Page    │   │  Selection   │   │   Page   │   │   Page     │  ║
-║   └──────────┘   └──────────────┘   └────┬─────┘   └────────────┘  ║
-║                                          │                           ║
-║                                    ┌─────▼──────┐                   ║
-║                                    │  Settings  │                   ║
-║                                    │    Page    │                   ║
-║                                    └────────────┘                   ║
-║                                                                      ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   SHARED COMPONENTS                                                  ║
-║   ┌─────────────┐  ┌──────────────┐  ┌──────────────┐              ║
-║   │  HeaderBar  │  │   NewsCard   │  │CommentsCard  │              ║
-║   │ (nav+theme) │  │(swipe+image) │  │(local votes) │              ║
-║   └─────────────┘  └──────────────┘  └──────────────┘              ║
-║   ┌─────────────┐  ┌──────────────┐                                 ║
-║   │  Country    │  │  Settings    │                                  ║
-║   │  Selector   │  │   Modal      │                                  ║
-║   └─────────────┘  └──────────────┘                                 ║
-║                                                                      ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   STATE & CONTEXT                                                    ║
-║   ┌──────────────────┐   ┌──────────────────┐                       ║
-║   │  ThemeContext    │   │  BookmarkContext  │                       ║
-║   │ isDark/toggle    │   │  bookmarks[]     │                       ║
-║   │ → localStorage   │   │  → localStorage  │                       ║
-║   └──────────────────┘   └──────────────────┘                       ║
-║                                                                      ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   UTILS / SERVICES                                                   ║
-║   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          ║
-║   │  api.js  │  │ mockApi  │  │storage.js│  │speech.js │          ║
-║   │ fetch +  │  │ XML/RSS  │  │ get/set  │  │ TTS read │          ║
-║   │ cap http │  │ parser   │  │ helpers  │  │  aloud   │          ║
-║   └──────────┘  └──────────┘  └──────────┘  └──────────┘          ║
-║   ┌──────────┐  ┌──────────┐                                        ║
-║   │genres.js │  │constants │                                        ║
-║   │ tile map │  │  & flags │                                        ║
-║   └──────────┘  └──────────┘                                        ║
-║                                                                      ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   EXTERNAL APIs                                                      ║
-║   ┌────────────────────┐   ┌───────────────────────┐               ║
-║   │  Google News RSS   │   │   MediaWiki API        │               ║
-║   │  (per country +    │   │  search+pageimages     │               ║
-║   │   genre topic URL) │   │  (Wikipedia images)    │               ║
-║   └────────────────────┘   └───────────────────────┘               ║
-║   ┌────────────────────┐   ┌───────────────────────┐               ║
-║   │  allorigins.win    │   │   Vercel Serverless    │               ║
-║   │  (CORS proxy, web) │   │  api/news.js +        │               ║
-║   └────────────────────┘   │  api/ai/bias-analysis │               ║
-║                             └───────────────────────┘               ║
-╠══════════════════════════════════════════════════════════════════════╣
-║                                                                      ║
-║   PLATFORM LAYER (Capacitor 5)                                       ║
-║   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐           ║
-║   │     Web      │   │   Android    │   │     iOS      │           ║
-║   │  (Vite dist) │   │  (APK/AAB)   │   │  (planned)   │           ║
-║   │  Vercel CDN  │   │CapacitorHttp │   │              │           ║
-║   └──────────────┘   └──────────────┘   └──────────────┘           ║
-║                                                                      ║
-╚══════════════════════════════════════════════════════════════════════╝
+
+## 🔄 News Feed Flow
+
+```mermaid
+flowchart TD
+    A([User opens app]) --> B[Landing.jsx\nhero + feature grid]
+    B -->|Get Started| C[GenreSelection.jsx\nselect 1–8 categories]
+    C -->|Confirm → genres saved\nto localStorage| D[Feed.jsx\nTikTok swipe stack]
+
+    D --> E{fetchNews\ngenre + country}
+    E --> F{Running on\nnative platform?}
+    F -->|Yes — Android| G[CapacitorHttp.get\nbypasses WebView CORS]
+    F -->|No — Web| H[fetch via\nallorigins.win proxy]
+    G --> I[Google News RSS]
+    H --> I
+    I --> J[mockApi.js\nparseXML → article array]
+    J --> K[Render NewsCard stack\ntwo-card z-indexed]
+
+    K --> L{User action}
+    L -->|Swipe up / Arrow↑| M[Next article\ndouble-rAF translateY\n380ms cubic-bezier]
+    L -->|Swipe down / Arrow↓| N[Prev article\nsame animation]
+    L -->|Tap Bookmark| O[BookmarkContext\n→ localStorage]
+    L -->|Tap Share| P[navigator.share\nor clipboard]
+    L -->|Long-press / Comments| Q[CommentsCard\nlocal votes]
+    L -->|Tap Read More| R[Open article URL\nin browser / app]
+
+    K --> S[Wikipedia Image Pipeline]
+    S --> T[buildWikiQuery\nstrip tickers + stop-words\ntop-5 keywords]
+    T --> U{Platform?}
+    U -->|Native| V[CapacitorHttp → MediaWiki\nsearch+pageimages API]
+    U -->|Web| W[fetch → MediaWiki\nsearch+pageimages API]
+    V --> X[resolvedImageCache\nmodule-level Map]
+    W --> X
+    X --> Y[img src in NewsCard]
+
+    D --> Z[CountrySelector\nflag dropdown z-50]
+    Z -->|setSelectedCountry| E
+
+    classDef page fill:#e0f2fe,stroke:#2563eb,color:#0f172a
+    classDef decision fill:#fef9c3,stroke:#ca8a04,color:#0f172a
+    classDef external fill:#fff7ed,stroke:#ea580c,color:#0f172a
+    classDef action fill:#f0fdf4,stroke:#16a34a,color:#0f172a
+    classDef storage fill:#f5f3ff,stroke:#7c3aed,color:#0f172a
+
+    class A,B,C,D,K page
+    class E,F,L,U decision
+    class I,V,W,R external
+    class M,N,O,P,Q,S,T,X,Y action
+    class O,X storage
 ```
 
-## 🔄 Data Flow Diagram
+---
 
+## 🔀 Swipe Animation Flow
+
+```mermaid
+flowchart TD
+    A([Touch / Key event]) --> B{Direction?}
+    B -->|Up / ArrowUp| C[pendingIndexRef = currentIndex + 1]
+    B -->|Down / ArrowDown| D[pendingIndexRef = currentIndex - 1]
+
+    C --> E[setAnimating true\nsetAnimDir up]
+    D --> F[setAnimating true\nsetAnimDir down]
+
+    E --> G[rAF 1 — layout paint]
+    F --> G
+    G --> H[rAF 2 — setAnimReady true\ntrigger CSS transition]
+    H --> I[translateY current card:\nup → -110vh  down → +110vh\n380ms cubic-bezier 0.4,0,0.2,1]
+    I --> J[onTransitionEnd]
+    J --> K[setCurrentIndex = pendingIndexRef\nsetAnimating false\nsetAnimReady false]
+    K --> L[New card snaps into place]
+
+    classDef anim fill:#e0f2fe,stroke:#2563eb,color:#0f172a
+    classDef trigger fill:#f0fdf4,stroke:#16a34a,color:#0f172a
+    classDef state fill:#fef9c3,stroke:#ca8a04,color:#0f172a
+
+    class A,B trigger
+    class C,D,E,F,G,H,I anim
+    class J,K,L state
 ```
-  User Action               React Layer                  External / Native
-  ─────────────────────────────────────────────────────────────────────────
 
-  [ Launch App ]
-        │
-        ▼
-  Landing.jsx ──(Get Started)──▶ GenreSelection.jsx
-                                        │
-                              (Confirm genres → localStorage)
-                                        │
-                                        ▼
-                                    Feed.jsx
-                                   ┌────┴────────────────────────────┐
-                                   │  fetchNews(genre, country)       │
-                                   │  ┌─────────────────────────┐    │
-                                   │  │  Native (Capacitor)?    │    │
-                                   │  │  YES → CapacitorHttp    │──▶ Google News RSS
-                                   │  │  NO  → allorigins proxy │──▶ Google News RSS
-                                   │  └─────────────────────────┘    │
-                                   │           │                      │
-                                   │    Parse XML (mockApi.js)        │
-                                   │    Build article[]               │
-                                   └────────────────────────────── ──┘
-                                        │
-                              Render NewsCard stack (z-indexed)
-                                        │
-          ┌───────────────┬─────────────┼──────────────┬──────────────┐
-          │               │             │              │              │
-      Swipe up/dn    Tap Bookmark   Tap Share      Long-press      Tap 🌐
-          │               │             │              │              │
-    TikTok anim    BookmarkContext  navigator      CommentsCard    Open URL
-    translateY     → localStorage   .share()      local votes   (browser/app)
-          │
-    Wikipedia image pipeline:
-      buildWikiQuery(title)
-      → MediaWiki search+pageimages API
-      → CapacitorHttp (native) / fetch (web)
-      → resolvedImageCache (module Map)
-      → <img> in NewsCard
+---
 
+## 🗂️ localStorage Data Model
 
-  [ Country Selector ]
-        │
-   CountrySelector.jsx (z-50 above card stack)
-        │
-   setSelectedCountry → re-fetch RSS for new hl/gl params
+```mermaid
+erDiagram
+    APP_STATE {
+        string newsly-theme "light | dark"
+        string newsly-genres "JSON array of selected genre ids"
+        string newsly-country "country code e.g. us, in, gb"
+        string newsly-sort "personalized | latest"
+    }
 
+    ARTICLE_INTERACTIONS {
+        string newsly-bookmarks "JSON array of article objects"
+        string newsly-comments "JSON map articleId → comment[]"
+        string newsly-bias-votes "JSON map articleId → vote"
+        string newsly-reading-history "JSON array of viewed article ids"
+    }
 
-  [ Settings Page ]
-        │
-   ThemeContext.toggleTheme() → document.classList / localStorage
-   storage.js helpers → hidePaywalled, sortMode, notifications
-   Bottom-sheet modals (Help / Subscriptions / Clear History / Logout)
+    PREFERENCES {
+        string newsly-notifications "true | false"
+        string newsly-font-size "small | medium | large"
+        string newsly-hide-paywalled "true | false"
+        string newsly-enhanced-bias "true | false"
+    }
+
+    APP_STATE ||--o{ ARTICLE_INTERACTIONS : "drives feed for"
+    APP_STATE ||--o{ PREFERENCES : "combined with"
 ```
 
 ## 🛠️ Tech Stack
