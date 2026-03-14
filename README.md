@@ -2,34 +2,58 @@
 
 A React-based cross-platform news app that delivers ultra-short (≈60-word) news stories with swipeable cards. Built with React + Capacitor for web and native mobile deployment.
 
-# Newsly - Some screenshot from google pixel 9
+# 📸 Screenshots — Google Pixel 9
 
-<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/da111c94-f703-4f0b-b524-c92192c40d39" />
+| Landing Page | Genre Selection |
+|:---:|:---:|
+| <img width="393" height="864" alt="Landing Page" src="https://github.com/user-attachments/assets/da111c94-f703-4f0b-b524-c92192c40d39" /> | <img width="393" height="864" alt="Genre Selection" src="https://github.com/user-attachments/assets/9e88526d-b629-4f91-a721-d5a9dedeb8bf" /> |
 
-<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/9e88526d-b629-4f91-a721-d5a9dedeb8bf" />
-
-<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/b4a2d6c1-e9ce-4f89-911c-419c8056b8e2" />
-
-<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/685d927d-c021-4580-87d5-deea71de7de3" />
+| News Feed | Settings |
+|:---:|:---:|
+| <img width="393" height="864" alt="News Feed" src="https://github.com/user-attachments/assets/b4a2d6c1-e9ce-4f89-911c-419c8056b8e2" /> | <img width="393" height="864" alt="Settings" src="https://github.com/user-attachments/assets/685d927d-c021-4580-87d5-deea71de7de3" /> |
 
 ## 🚀 Features
 
-- **📱 Cross-Platform**: Web, Android, working on iOS
-- **🌍 Country Selection**: Get news from 15+ countries with flag indicators
-- **🎯 Genre Selection**: 8 news categories with animated, color-coded tile grid (Technology, World, Business, Sports, Science, Health, Entertainment, Politics)
-- **📰 Ultra-Short Summaries**: News stories condensed to ~60 words
-- **👆 TikTok-style Swipe**: Smooth two-card stack swipe animation with `translateY` transitions (mobile + keyboard)
-- **🖼️ Smart Wikipedia Images**: MediaWiki search+pageimages API with keyword extraction, per-session cache, and CapacitorHttp on Android native
-- **🔖 Bookmarking**: Save articles to read later
-- **🌙 Dark / Light Mode**: Toggleable everywhere — Landing, Genre Selection, Feed, and Settings; defaults to light, persisted to localStorage
-- **💾 No Database**: Everything stored in localStorage
-- **📱 Responsive Design**: Works on all devices
-- **🔄 Real-time News**: Fetches latest news from Google News RSS
-- **🔄 Auto-Refresh**: Automatically refreshes when country is changed
-- **💬 Comments System**: Add and view comments on articles
-- **📤 Share Functionality**: Share articles across platforms
-- **⚙️ Redesigned Settings Page**: Full-page settings with grouped sections, icon pill rows, toggle switches, and bottom-sheet modals
-- **🎨 Redesigned UI**: Overhauled Landing page (hero + feature grid) and Genre Selection (dark tile grid with checkmark badges)
+### 📱 Core Experience
+- **Cross-Platform**: Runs on Web, Android (APK/AAB), and iOS (planned) via Capacitor 5
+- **Ultra-Short Summaries**: News stories condensed to ~60 words — no fluff, just facts
+- **TikTok-style Swipe**: Two-card stack with `translateY` transitions, double-rAF two-phase animation, 380ms cubic-bezier easing — swipe or use arrow keys
+- **Real-time News**: Live Google News RSS feeds, auto-refreshes on country or genre change
+
+### 🎨 UI & Design
+- **Dark / Light Mode**: Toggle on every screen — Landing, Genre Selection, Feed, and Settings; defaults to light, persisted to localStorage
+- **Redesigned Landing Page**: Hero layout with 2-column feature grid (Zap / Globe2 / Bookmark / ShieldCheck), theme toggle, and Skip button
+- **Redesigned Genre Selection**: Dark 2-column tile grid with per-genre gradient colors, animated checkmark badge on selected tiles, scale bump, sticky progress bar + CTA
+- **Redesigned Settings Page**: Profile strip with gradient icon, grouped Section cards (rounded-2xl), SettingRow with colored icon pills + Toggle switch, bottom-sheet backdrop-blur modals
+
+### 🌍 Personalisation
+- **Country Selection**: 15+ countries with flag indicators — news scoped to your region
+- **Genre Selection**: 8 categories — Technology, World, Business, Sports, Science, Health, Entertainment, Politics
+- **Default Sort**: Toggle between Personalized feed or Latest news
+- **Hide Paywalled Articles**: Filter out articles from common paywalled sources
+- **Font Size**: Small / Medium / Large reading preference
+
+### 🖼️ Smart Images
+- **Wikipedia Image Pipeline**: MediaWiki search+pageimages API with keyword extraction, financial stop-word filtering, per-session module-level cache, and CapacitorHttp on Android native to bypass WebView CORS
+
+### 🔖 Saves & Social
+- **Bookmarking**: Save articles to a dedicated Bookmarks page, persisted to localStorage
+- **Comments System**: Add and view comments on articles with local vote persistence
+- **Share Functionality**: Native share sheet on mobile, clipboard fallback on web
+- **Read Aloud**: Web Speech API TTS — listen to articles hands-free
+
+### ⚙️ Settings
+- **Appearance**: Dark/light theme toggle
+- **Feed**: Hide paywalled, default sort mode
+- **Notifications**: On/off toggle
+- **Account**: Bookmarks, Subscriptions (stub), Clear History, Feedback, Help & Support
+- **Danger Zone**: Log out (clears localStorage)
+
+### 🛠️ Technical
+- **No Database**: Fully client-side — everything in localStorage
+- **Responsive Design**: Optimised for mobile and desktop
+- **Bias Analysis**: Community bias panel + AI bias scoring endpoint (`api/ai/bias-analysis.js`)
+- **Vercel Serverless**: `api/news.js` for server-side RSS fetch (CORS bypass)
 
 ## 📅 Development Timeline
 
