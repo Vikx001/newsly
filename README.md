@@ -4,15 +4,13 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 
 # Newsly - Some screenshot from google pixel 9
 
-<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/778f0af9-610b-4ea0-b254-47bd99c671c9" />
+<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/da111c94-f703-4f0b-b524-c92192c40d39" />
 
-<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/0314e6b8-5b49-497c-a961-64f405ebdbc8" />
+<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/9e88526d-b629-4f91-a721-d5a9dedeb8bf" />
 
-<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/770c1404-cc7e-40ba-b311-7db3e2a899ac" />
+<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/b4a2d6c1-e9ce-4f89-911c-419c8056b8e2" />
 
-<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/fa74bd07-b4e1-40d0-ae1c-fca5aa100dd5" />
-
-<img width="430" height="875" alt="image" src="https://github.com/user-attachments/assets/a74cddd9-1cb7-4c06-8a3b-3a5d5091b643" />
+<img width="393" height="864" alt="Image" src="https://github.com/user-attachments/assets/685d927d-c021-4580-87d5-deea71de7de3" />
 
 ## 🚀 Features
 
