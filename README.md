@@ -69,83 +69,135 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 
 ## 🏗️ Architecture Overview
 
+### App Layer
+
 ```mermaid
 flowchart TD
-    subgraph Device["📱 Device (Web / Android / iOS)"]
+    A(["👤 User"])
+
+    A --> Landing
+
+    subgraph Pages["🗂️ Pages — React Router v6"]
         direction TB
-        subgraph Pages["Page Router — React Router v6"]
-            Landing["Landing\n(hero + feature grid)"]
-            Genre["GenreSelection\n(tile grid + progress bar)"]
-            Feed["Feed\n(TikTok swipe stack)"]
-            Bookmarks["Bookmarks\n(saved articles)"]
-            Settings["Settings\n(sections + modals)"]
-            Landing -->|Get Started| Genre
-            Genre -->|Confirm genres| Feed
-            Feed -->|nav| Bookmarks
-            Feed -->|nav| Settings
-        end
+        Landing["🏠 Landing\nHero · Feature Grid · Theme Toggle"]
+        Genre["🎯 GenreSelection\n2-col Gradient Tile Grid · Progress Bar"]
+        Feed["📰 Feed\nTikTok Swipe Stack · Country Selector"]
+        Bookmarks["🔖 Bookmarks\nSaved Articles List"]
+        Settings["⚙️ Settings\nSections · Toggles · Bottom-sheet Modals"]
 
-        subgraph Components["Shared Components"]
-            NewsCard["NewsCard\n(swipe + Wikipedia image)"]
-            HeaderBar["HeaderBar\n(nav + theme toggle)"]
-            CountrySelector["CountrySelector\n(flag dropdown, z-50)"]
-            CommentsCard["CommentsCard\n(local votes)"]
-            SettingsModal["SettingsModal\n(legacy overlay)"]
-        end
-
-        subgraph Contexts["React Context (Global State)"]
-            ThemeCtx["ThemeContext\nisDark / toggleTheme\n→ localStorage"]
-            BookmarkCtx["BookmarkContext\nbookmarks[]\n→ localStorage"]
-        end
-
-        subgraph Utils["Utils & Services"]
-            apiJs["api.js\nfetchNews()\nplatform-aware"]
-            mockApi["mockApi.js\nXML → article[]"]
-            storageJs["storage.js\ntyped get/set helpers"]
-            speechJs["speech.js\nWeb Speech API TTS"]
-            genresJs["genres.js\nGENRE_STYLES gradient map"]
-        end
-
-        Feed --> NewsCard
-        Feed --> HeaderBar
-        Feed --> CountrySelector
-        NewsCard --> CommentsCard
+        Landing -->|"Get Started"| Genre
+        Genre -->|"Confirm genres"| Feed
+        Feed --> Bookmarks
+        Feed --> Settings
     end
 
-    subgraph External["☁️ External APIs"]
-        GoogleRSS["Google News RSS\nper country + genre\ntopic URL"]
-        MediaWiki["MediaWiki API\nsearch+pageimages\n(Wikipedia images)"]
-        CORSProxy["allorigins.win\nCORS proxy (web only)"]
-        Vercel["Vercel Serverless\napi/news.js\napi/ai/bias-analysis.js"]
+    subgraph Components["🧩 Shared Components"]
+        direction TB
+        NewsCard["📄 NewsCard\nSwipe Animation · Wikipedia Image Pipeline"]
+        HeaderBar["🔝 HeaderBar\nNav · Theme Toggle · Back Button"]
+        CountrySelector["🌍 CountrySelector\nFlag Dropdown — z-50 above stack"]
+        CommentsCard["💬 CommentsCard\nInline Comments · Local Votes"]
     end
 
-    subgraph Platform["⚙️ Platform Layer — Capacitor 5"]
-        Web["Web\nVite dist\nVercel CDN"]
-        Android["Android\nAPK / AAB\nCapacitorHttp"]
-        iOS["iOS\n(planned)"]
+    subgraph State["🗃️ Global State — React Context"]
+        direction LR
+        ThemeCtx["🌙 ThemeContext\nisDark / toggleTheme\n→ localStorage"]
+        BookmarkCtx["🔖 BookmarkContext\nbookmarks[]\n→ localStorage"]
     end
 
-    apiJs -->|"Native: CapacitorHttp\n(bypasses WebView CORS)"| GoogleRSS
-    apiJs -->|"Web: fetch via"| CORSProxy --> GoogleRSS
-    NewsCard -->|"buildWikiQuery(title)\nCapacitorHttp / fetch"| MediaWiki
-    Feed -->|"fetchNews"| apiJs
+    subgraph Utils["🛠️ Utils & Services"]
+        direction LR
+        apiJs["api.js\nfetchNews()"]
+        mockApi["mockApi.js\nXML → article[]"]
+        storageJs["storage.js\nget/set helpers"]
+        speechJs["speech.js\nTTS read-aloud"]
+        genresJs["genres.js\nGradient map"]
+    end
+
+    Feed --> NewsCard
+    Feed --> HeaderBar
+    Feed --> CountrySelector
+    NewsCard --> CommentsCard
+    Feed --> apiJs
     apiJs --> mockApi
+    Settings --> ThemeCtx
+    Settings --> storageJs
+    Feed --> BookmarkCtx
 
-    Device --> Platform
-    Vercel -.->|"server-side RSS + AI bias"| GoogleRSS
-
-    classDef page fill:#e0f2fe,stroke:#2563eb,color:#0f172a
-    classDef component fill:#f0fdf4,stroke:#16a34a,color:#0f172a
-    classDef context fill:#fef9c3,stroke:#ca8a04,color:#0f172a
-    classDef util fill:#f5f3ff,stroke:#7c3aed,color:#0f172a
-    classDef external fill:#fff7ed,stroke:#ea580c,color:#0f172a
-    classDef platform fill:#f0f4f8,stroke:#94a3b8,color:#0f172a
+    classDef page fill:#dbeafe,stroke:#2563eb,color:#0f172a,rx:8
+    classDef component fill:#dcfce7,stroke:#16a34a,color:#0f172a,rx:8
+    classDef ctx fill:#fef9c3,stroke:#ca8a04,color:#0f172a,rx:8
+    classDef util fill:#ede9fe,stroke:#7c3aed,color:#0f172a,rx:8
+    classDef user fill:#f1f5f9,stroke:#475569,color:#0f172a,rx:20
 
     class Landing,Genre,Feed,Bookmarks,Settings page
-    class NewsCard,HeaderBar,CountrySelector,CommentsCard,SettingsModal component
-    class ThemeCtx,BookmarkCtx context
+    class NewsCard,HeaderBar,CountrySelector,CommentsCard component
+    class ThemeCtx,BookmarkCtx ctx
     class apiJs,mockApi,storageJs,speechJs,genresJs util
-    class GoogleRSS,MediaWiki,CORSProxy,Vercel external
+    class A user
+```
+
+---
+
+### Data & Platform Layer
+
+```mermaid
+flowchart TD
+    subgraph Fetch["📡 News Fetching — api.js"]
+        direction TB
+        Check{"Running on\nnative platform?"}
+        CapHttp["CapacitorHttp.get\nBypasses WebView CORS"]
+        Proxy["fetch → allorigins.win\nCORS proxy for web"]
+        Check -->|"Android / iOS"| CapHttp
+        Check -->|"Web browser"| Proxy
+    end
+
+    subgraph RSS["☁️ Google News RSS"]
+        direction TB
+        GRSS["news.google.com/rss\nper country hl/gl param\n+ genre topic URL"]
+    end
+
+    subgraph Images["🖼️ Wikipedia Image Pipeline — NewsCard"]
+        direction TB
+        Query["buildWikiQuery\nstrip tickers + stop-words\ntop-5 keywords"]
+        Wiki["MediaWiki API\nsearch + pageimages"]
+        Cache["resolvedImageCache\nmodule-level Map\n(per session)"]
+        Query --> Wiki --> Cache
+    end
+
+    subgraph Serverless["☁️ Vercel Serverless"]
+        direction TB
+        NewsAPI["api/news.js\nServer-side RSS fetch"]
+        BiasAPI["api/ai/bias-analysis.js\nAI bias scoring"]
+    end
+
+    subgraph Platform["📲 Platform Layer — Capacitor 5"]
+        direction LR
+        Web["🌐 Web\nVite dist · Vercel CDN"]
+        Android["🤖 Android\nAPK / AAB · CapacitorHttp"]
+        iOS["🍎 iOS\nplanned"]
+    end
+
+    CapHttp --> GRSS
+    Proxy --> GRSS
+    NewsAPI -.->|server-side bypass| GRSS
+
+    Fetch --> RSS
+    Images -.->|image lookup| Wiki
+
+    Platform --> Fetch
+    Platform --> Images
+
+    classDef fetch fill:#dbeafe,stroke:#2563eb,color:#0f172a,rx:8
+    classDef rss fill:#fff7ed,stroke:#ea580c,color:#0f172a,rx:8
+    classDef img fill:#dcfce7,stroke:#16a34a,color:#0f172a,rx:8
+    classDef server fill:#fef9c3,stroke:#ca8a04,color:#0f172a,rx:8
+    classDef platform fill:#f1f5f9,stroke:#475569,color:#0f172a,rx:8
+
+    class Check,CapHttp,Proxy fetch
+    class GRSS rss
+    class Query,Wiki,Cache img
+    class NewsAPI,BiasAPI server
     class Web,Android,iOS platform
 ```
 
