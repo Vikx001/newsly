@@ -1,4 +1,4 @@
-# Newsly - Ultra-Short News App
+# Newsly — Ultra-Short News App
 
 A React-based cross-platform news app that delivers ultra-short (≈60-word) news stories with swipeable cards. Built with React + Capacitor for web and native mobile deployment.
 
@@ -18,47 +18,62 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 - **Cross-Platform**: Runs on Web, Android (APK/AAB), and iOS (planned) via Capacitor 5
 - **Ultra-Short Summaries**: News stories condensed to ~60 words — no fluff, just facts
 - **TikTok-style Swipe**: Two-card stack with `translateY` transitions, double-rAF two-phase animation, 380ms cubic-bezier easing — swipe or use arrow keys
-- **Real-time News**: Live Google News RSS feeds, auto-refreshes on country or genre change
+- **Real-time News**: Live Google News RSS feeds, auto-refreshes on country or genre change without a full page reload
+- **Infinite Scroll**: Automatically appends more articles (deduped by URL) when within 3 cards of the end
+- **Reading Time**: Per-article word-count estimate displayed on each card (~200 wpm)
 
 ### 🎨 UI & Design
 - **Dark / Light Mode**: Toggle on every screen — Landing, Genre Selection, Feed, and Settings; defaults to light, persisted to localStorage
 - **Redesigned Landing Page**: Hero layout with 2-column feature grid (Zap / Globe2 / Bookmark / ShieldCheck), theme toggle, and Skip button
 - **Redesigned Genre Selection**: Dark 2-column tile grid with per-genre gradient colors, animated checkmark badge on selected tiles, scale bump, sticky progress bar + CTA
 - **Redesigned Settings Page**: Profile strip with gradient icon, grouped Section cards (rounded-2xl), SettingRow with colored icon pills + Toggle switch, bottom-sheet backdrop-blur modals
+- **Swipe-proof Header**: Touch events outside the card are captured to prevent the header from being dragged away — inner text panel remains independently scrollable
+
+### 🔍 Search
+- **Debounced Search**: 400ms debounce so results only filter after you stop typing
+- **Article / Newspaper Toggle**: Switch between searching article titles+descriptions vs. source names (e.g. "BBC", "Reuters", "The Hindu")
+- **Inline No-Results Fallback**: When a search yields zero results, a friendly card replaces the stack with hint text and quick-action buttons (Clear search / Switch mode) — you never leave the feed
+- **Typing Indicator**: "Searching…" overlay shown during the debounce window
 
 ### 🌍 Personalisation
-- **Country Selection**: 15+ countries with flag indicators — news scoped to your region
+- **Country Selection**: 15+ countries with flag indicators — news scoped to your region, passed server-side via `countryParam`
 - **Genre Selection**: 8 categories — Technology, World, Business, Sports, Science, Health, Entertainment, Politics
 - **Default Sort**: Toggle between Personalized feed or Latest news
-- **Hide Paywalled Articles**: Filter out articles from common paywalled sources
+- **Hide Paywalled Articles**: Filter out articles from 30 known paywalled sources (expanded from 9)
 - **Font Size**: Small / Medium / Large reading preference
 
 ### 🖼️ Smart Images
-- **Wikipedia Image Pipeline**: MediaWiki search+pageimages API with keyword extraction, financial stop-word filtering, per-session module-level cache, and CapacitorHttp on Android native to bypass WebView CORS
+- **Wikipedia Image Pipeline**: MediaWiki search+pageimages API with keyword extraction, financial stop-word filtering, per-session module-level cache, and `CapacitorHttp` on Android native to bypass WebView CORS
 
 ### 🔖 Saves & Social
 - **Bookmarking**: Save articles to a dedicated Bookmarks page, persisted to localStorage
-- **Comments System**: Add and view comments on articles with local vote persistence
+- **Comments System**: Inline name prompt, 500-character limit with live counter, like deduplication keyed by `hashKey` — no `window.prompt()`, no repeat likes
 - **Share Functionality**: Native share sheet on mobile, clipboard fallback on web
-- **Read Aloud**: Web Speech API TTS — listen to articles hands-free
+- **Read Aloud**: `SpeechManager` singleton (Web Speech API TTS) — listen to articles hands-free
+
+### 🧠 AI & Analysis
+- **Bias Analysis**: Community bias panel + vote sheet keyed by `hashKey`
+- **Enhanced Bias Mode**: When enabled in Settings, auto-runs `/api/ai/bias-analysis` on every article load and pre-fills the score
+
+### 🛡️ Reliability & Security
+- **Error Boundary**: React class component wraps the entire app — catches render crashes, shows "Try again" UI
+- **`hashKey` (djb2)**: All `localStorage` keys derived from article IDs use a collision-resistant djb2 hash instead of `btoa()` — safe against special characters and encoding collisions
+- **Serverless-First Fetching**: `api.js` tries `/api/news` (Vercel serverless, true server-side CORS bypass) first; falls back to `allorigins.win` CORS proxy for local dev / fallback
+- **Progress Indicator**: `X / Y` counter below the card stack
 
 ### ⚙️ Settings
 - **Appearance**: Dark/light theme toggle
-- **Feed**: Hide paywalled, default sort mode
+- **Feed**: Hide paywalled (30 domains), default sort mode, Enhanced Bias Analysis
 - **Notifications**: On/off toggle
 - **Account**: Bookmarks, Subscriptions (stub), Clear History, Feedback, Help & Support
 - **Danger Zone**: Log out (clears localStorage)
-
-### 🛠️ Technical
-- **No Database**: Fully client-side — everything in localStorage
-- **Responsive Design**: Optimised for mobile and desktop
-- **Bias Analysis**: Community bias panel + AI bias scoring endpoint (`api/ai/bias-analysis.js`)
-- **Vercel Serverless**: `api/news.js` for server-side RSS fetch (CORS bypass)
 
 ## 📅 Development Timeline
 
 | Date | Version | Updates |
 |------|---------|---------|
+| 19/03/2026 | v3.1.0 | 🔍 Search, Reliability & UX Polish<br/>• **Debounced search** (400 ms) with **Article / Newspaper toggle** - filter by title+description or by source name.<br/>• **Inline no-results fallback** - friendly card with Clear search and Switch mode CTAs replaces card stack; never kicks user out of the feed.<br/>• **Typing indicator** overlay during debounce window.<br/>• **ErrorBoundary** component wraps entire app - catches render crashes with Try again UI.<br/>• **`hashKey` (djb2)** replaces `btoa()` for all localStorage keys - collision-resistant, safe against special characters.<br/>• **CommentsCard rewrite** - inline name prompt (no `window.prompt()`), 500-char limit with live counter, like deduplication per article.<br/>• **`SpeechManager` singleton** (`speech.js`) replaces ad-hoc inline speech code in NewsCard.<br/>• **Reading time** estimate per article (word-count / 200 wpm).<br/>• **Enhanced Bias auto-run** - when enabled in Settings, bias score fetched automatically on article load.<br/>• **Serverless-first fetch** - `api.js` now tries `/api/news` (Vercel, true server-side bypass) before CORS proxy fallback.<br/>• **Country-aware serverless** - `api/news.js` accepts `countryParam` query param; builds country-scoped RSS URLs server-side.<br/>• **Infinite scroll** - auto-appends more articles (URL-deduped) when within 3 cards of end.<br/>• **Progress indicator** - X / Y counter below card stack.<br/>• **No reload on country change** - `loadNews(forceRefresh, countryOverride)` replaces `window.location.reload()`.<br/>• **Swipe-proof header** - `touchAction: none` plus gesture capture on main prevents header from being swiped away; inner text panel independently scrollable.<br/>• **Paywall list expanded** 9 to 30 domains (Telegraph, Wired, HBR, Nature, Barrons, regional papers, AFR, etc.).<br/>• Dead code removed: `HeaderBar.jsx`, `SettingsModal.jsx`, `UnderConstruction.jsx`. |
+| 19/03/2026 | v3.1.0 | 🔍 Search, Reliability & UX Polish<br/>• **Debounced search** (400 ms) with **Article / Newspaper toggle** - filter by title+description or by source name.<br/>• **Inline no-results fallback** - friendly card with Clear search and Switch mode CTAs replaces card stack; never kicks user out of the feed.<br/>• **Typing indicator** overlay during debounce window.<br/>• **ErrorBoundary** component wraps entire app - catches render crashes with Try again UI.<br/>• **`hashKey` (djb2)** replaces `btoa()` for all localStorage keys - collision-resistant, safe against special characters.<br/>• **CommentsCard rewrite** - inline name prompt (no `window.prompt()`), 500-char limit with live counter, like deduplication per article.<br/>• **`SpeechManager` singleton** (`speech.js`) replaces ad-hoc inline speech code in NewsCard.<br/>• **Reading time** estimate per article (word-count / 200 wpm).<br/>• **Enhanced Bias auto-run** - when enabled in Settings, bias score fetched automatically on article load.<br/>• **Serverless-first fetch** - `api.js` now tries `/api/news` (Vercel, true server-side bypass) before CORS proxy fallback.<br/>• **Country-aware serverless** - `api/news.js` accepts `countryParam` query param; builds country-scoped RSS URLs server-side.<br/>• **Infinite scroll** - auto-appends more articles (URL-deduped) when within 3 cards of end.<br/>• **Progress indicator** - X / Y counter below card stack.<br/>• **No reload on country change** - `loadNews(forceRefresh, countryOverride)` replaces `window.location.reload()`.<br/>• **Swipe-proof header** - `touchAction: none` plus gesture capture on main prevents header from being swiped away; inner text panel independently scrollable.<br/>• **Paywall list expanded** 9 to 30 domains (Telegraph, Wired, HBR, Nature, Barrons, regional papers, AFR, etc.).<br/>• Dead code removed: `HeaderBar.jsx`, `SettingsModal.jsx`, `UnderConstruction.jsx`. |
 | 15/03/2026 | v3.0.0 | 🎨 Full UI Overhaul & Bug Fixes<br/>• **TikTok-style swipe animation**: two-card stack with `translateY` transitions, double-rAF two-phase animation, 380 ms cubic-bezier easing.<br/>• **Wikipedia Smart Images**: switched from page/summary to MediaWiki search+pageimages API; keyword extraction strips financial stop words; per-session module-level cache; `CapacitorHttp` on Android native to bypass WebView CORS.<br/>• **Flicker & white-flash fixes**: removed synchronous `setResolvedImage(null)` and `isTransitioning` opacity animation from Feed.<br/>• **Country dropdown z-index fix**: Feed header gets `relative z-50` so selector renders above card stack.<br/>• **Landing page redesign**: dark/light hero layout, 2-column feature grid (Zap / Globe2 / Bookmark / ShieldCheck icons), sun/moon toggle, Skip button.<br/>• **Genre Selection redesign**: dark 2-column square tile grid with per-genre gradient colors, checkmark badge on selected tiles, scale bump, sticky progress bar + CTA.<br/>• **Settings page redesign**: Profile strip with gradient icon, grouped Section cards (rounded-2xl), SettingRow with colored icon pills + Toggle switch, bottom-sheet backdrop-blur modals; sections: Appearance / Feed / Notifications / Account / Support / Danger zone.<br/>• **Theme toggle** added to Landing and Genre Selection (uses existing ThemeContext, defaults to light).<br/>• ~15 miscellaneous bug fixes (Bengali locale, Android build, image cache race conditions, etc.) |
 | 16/08/2025 | v2.3.0 | 🎨 Layout Refresh & Settings Expansion<br/>• New compact header in Feed with country selector, refresh, sort (Personalized/Latest), theme and settings buttons.<br/>• “Swipe up” affordance and smoother card transitions.<br/>• Read Aloud controls and keyboard shortcuts (Arrow Up/Down, Ctrl+Space).<br/>• Community Bias features: analysis panel + vote sheet with local persistence.<br/>• Article translation with LibreTranslate/Lingva fallback.<br/>• Settings additions: Theme, Notifications, Reading font size, Hide paywalled, Default sort, Bookmarks, Subscriptions (stub), Clear history, Feedback, Help & Support, Logout |
 | 16/08/2025 | v2.2.0 | 🖼️ Smart Image Resolver & Reliability<br/>• Prefer original article URL (bypass Google News redirect).<br/>• Extract images from OG/Twitter/JSON‑LD/srcset and follow canonical links.<br/>• Openverse photograph fallback when no image is found.<br/>• Web image proxying for reliability (Weserv).<br/>• Improved handling of placeholder/flag images |
@@ -93,10 +108,10 @@ flowchart TD
 
     subgraph Components["🧩 Shared Components"]
         direction TB
-        NewsCard["📄 NewsCard\nSwipe Animation · Wikipedia Image Pipeline"]
-        HeaderBar["🔝 HeaderBar\nNav · Theme Toggle · Back Button"]
+        NewsCard["📄 NewsCard\nSwipe · Reading Time · Bias Auto-run"]
+        ErrorBoundary["🛡️ ErrorBoundary\nRender Error Catch · Retry UI"]
         CountrySelector["🌍 CountrySelector\nFlag Dropdown — z-50 above stack"]
-        CommentsCard["💬 CommentsCard\nInline Comments · Local Votes"]
+        CommentsCard["💬 CommentsCard\nInline Name · 500-char Limit · Dedup"]
     end
 
     subgraph State["🗃️ Global State — React Context"]
@@ -107,17 +122,17 @@ flowchart TD
 
     subgraph Utils["🛠️ Utils & Services"]
         direction LR
-        apiJs["api.js\nfetchNews()"]
-        mockApi["mockApi.js\nXML → article[]"]
-        storageJs["storage.js\nget/set helpers"]
-        speechJs["speech.js\nTTS read-aloud"]
+        apiJs["api.js\nserverless-first fetchNews()"]
+        mockApi["mockApi.js\nXML → article[] · getCountryParam()"]
+        storageJs["storage.js\nget/set helpers · hashKey (djb2)"]
+        speechJs["speech.js\nSpeechManager singleton"]
         genresJs["genres.js\nGradient map"]
     end
 
     Feed --> NewsCard
-    Feed --> HeaderBar
     Feed --> CountrySelector
     NewsCard --> CommentsCard
+    App --> ErrorBoundary
     Feed --> apiJs
     apiJs --> mockApi
     Settings --> ThemeCtx
@@ -131,7 +146,7 @@ flowchart TD
     classDef user fill:#f1f5f9,stroke:#475569,color:#0f172a,rx:20
 
     class Landing,Genre,Feed,Bookmarks,Settings page
-    class NewsCard,HeaderBar,CountrySelector,CommentsCard component
+    class NewsCard,ErrorBoundary,CountrySelector,CommentsCard component
     class ThemeCtx,BookmarkCtx ctx
     class apiJs,mockApi,storageJs,speechJs,genresJs util
     class A user
@@ -146,10 +161,12 @@ flowchart TD
     subgraph Fetch["📡 News Fetching — api.js"]
         direction TB
         Check{"Running on\nnative platform?"}
+        Serverless["POST /api/news\nVercel serverless (tried first)"]
         CapHttp["CapacitorHttp.get\nBypasses WebView CORS"]
-        Proxy["fetch → allorigins.win\nCORS proxy for web"]
+        Proxy["fetch → allorigins.win\nCORS proxy fallback"]
         Check -->|"Android / iOS"| CapHttp
-        Check -->|"Web browser"| Proxy
+        Check -->|"Web — try serverless"| Serverless
+        Serverless -->|"fails"| Proxy
     end
 
     subgraph RSS["☁️ Google News RSS"]
@@ -194,7 +211,7 @@ flowchart TD
     classDef server fill:#fef9c3,stroke:#ca8a04,color:#0f172a,rx:8
     classDef platform fill:#f1f5f9,stroke:#475569,color:#0f172a,rx:8
 
-    class Check,CapHttp,Proxy fetch
+    class Check,CapHttp,Proxy,Serverless fetch
     class GRSS rss
     class Query,Wiki,Cache img
     class NewsAPI,BiasAPI server
@@ -296,8 +313,9 @@ erDiagram
 
     ARTICLE_INTERACTIONS {
         string newsly-bookmarks "JSON array of article objects"
-        string newsly-comments "JSON map articleId → comment[]"
-        string newsly-bias-votes "JSON map articleId → vote"
+        string newsly-comments "JSON map hashKey(articleId) → comment[]"
+        string newsly-bias-votes "JSON map hashKey(articleId) → vote"
+        string newsly-liked-comments "JSON map hashKey(articleId) → Set of liked comment ids"
         string newsly-reading-history "JSON array of viewed article ids"
     }
 
@@ -354,27 +372,25 @@ newsly/
 │   │   ├── GenreSelection.jsx        # 2-col gradient tile grid, progress bar, theme toggle
 │   │   ├── Feed.jsx                  # News feed — TikTok swipe stack, country selector
 │   │   ├── Settings.jsx              # Full-page settings — sections, toggles, modals
-│   │   ├── Bookmarks.jsx             # Saved articles list
-│   │   └── UnderConstruction.jsx     # Placeholder stub page
+│   │   └── Bookmarks.jsx             # Saved articles list
 │   │
 │   ├── components/                   # Reusable UI building blocks
-│   │   ├── NewsCard.jsx              # Article card — Wikipedia image pipeline, swipe
-│   │   ├── HeaderBar.jsx             # Top nav — logo, theme toggle, back button
+│   │   ├── NewsCard.jsx              # Article card — image pipeline, reading time, bias auto-run
+│   │   ├── CommentsCard.jsx          # Inline comments — name prompt, 500-char limit, like dedup
 │   │   ├── CountrySelector.jsx       # Flag dropdown (z-50, above card stack)
-│   │   ├── CommentsCard.jsx          # Inline comment thread with local persistence
-│   │   └── SettingsModal.jsx         # Legacy overlay modal (superseded by Settings page)
+│   │   └── ErrorBoundary.jsx         # Class component — render error catch + retry UI
 │   │
 │   ├── contexts/                     # React context providers
 │   │   ├── ThemeContext.jsx          # isDark state, toggleTheme(), localStorage sync
 │   │   └── BookmarkContext.jsx       # bookmarks[], add/remove, localStorage sync
 │   │
 │   └── utils/                        # Pure helpers and service modules
-│       ├── api.js                    # fetchNews() — platform-aware RSS fetch + parse
-│       ├── mockApi.js                # XML → article[] parser, RSS utilities
+│       ├── api.js                    # fetchNews() — serverless-first, CORS proxy fallback
+│       ├── mockApi.js                # XML → article[] parser · getCountryParam() export
 │       ├── genres.js                 # Genre definitions + GENRE_STYLES gradient map
-│       ├── storage.js                # Typed localStorage get/set helpers
-│       ├── constants.js              # App-wide constants (countries, flags, etc.)
-│       ├── speech.js                 # Web Speech API — read-aloud TTS wrapper
+│       ├── storage.js                # get/set helpers · hashKey(str) djb2 export
+│       ├── constants.js              # PAYWALLED_DOMAINS (30), countries, flags
+│       ├── speech.js                 # SpeechManager singleton — TTS read-aloud
 │       └── __tests__/
 │           └── countryNews.test.js   # Jest unit tests for country news fetching
 │

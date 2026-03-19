@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle, Languages, Shield } from 'lucide-react'
+import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle, Languages, Shield, Clock } from 'lucide-react'
 import { useBookmarks } from '../contexts/BookmarkContext'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { CapacitorHttp } from '@capacitor/core'
+import { speechManager } from '../utils/speech'
+import { hashKey } from '../utils/storage'
 
 // Per-session cache so repeated swipes don't re-fetch article HTML
 const resolvedImageCache = new Map()
@@ -59,17 +61,48 @@ const NewsCard = ({
 
     // Load bias votes for this article
     try {
-      const votesRaw = localStorage.getItem(`newsly_bias_votes_${btoa(articleId)}`)
+      const votesRaw = localStorage.getItem(`newsly_bias_votes_${hashKey(articleId)}`)
       if (votesRaw) {
         const parsed = JSON.parse(votesRaw)
         setBiasVotes({ biased: parsed.biased || 0, nonBiased: parsed.nonBiased || 0, myVote: parsed.myVote || null })
       } else {
         setBiasVotes({ biased: 0, nonBiased: 0, myVote: null })
       }
-    } catch (e) {
+    } catch {
       setBiasVotes({ biased: 0, nonBiased: 0, myVote: null })
     }
 
+    // Auto-run bias analysis when Enhanced Bias Analysis is enabled
+    const enhancedBiasEnabled = localStorage.getItem('newsly_enhanced_bias') === 'true'
+    if (enhancedBiasEnabled) {
+      setBiasAnalysis(null)
+      setShowBiasAnalysis(false)
+    }
+  }, [article])
+
+  // When enhanced bias mode is on, auto-fetch bias analysis for each new article
+  useEffect(() => {
+    const enhancedBiasEnabled = localStorage.getItem('newsly_enhanced_bias') === 'true'
+    if (enhancedBiasEnabled && article?.title && !biasAnalysis && !analyzingBias) {
+      const run = async () => {
+        setAnalyzingBias(true)
+        try {
+          const text = `${article.title || ''}\n\n${article.description || ''}`
+          const resp = await fetch('/api/ai/bias-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, source: article.source?.name || '' })
+          })
+          if (resp.ok) {
+            const data = await resp.json()
+            setBiasAnalysis(data)
+            setShowBiasAnalysis(true)
+          }
+        } catch {}
+        finally { setAnalyzingBias(false) }
+      }
+      run()
+    }
   }, [article])
 
   const minSwipeDistance = 50
@@ -81,7 +114,6 @@ const NewsCard = ({
   const [imageError, setImageError] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   const [isReading, setIsReading] = useState(false)
-  const [speechSynthesis, setSpeechSynthesis] = useState(null)
   const [resolvedImage, setResolvedImage] = useState(null)
   const [resolvingImage, setResolvingImage] = useState(false)
   const [imageCredit, setImageCredit] = useState(null)
@@ -203,46 +235,28 @@ const NewsCard = ({
 
 
 
+  // Stop speech when article changes
   useEffect(() => {
-    // Initialize speech synthesis
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      setSpeechSynthesis(window.speechSynthesis)
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (speechSynthesis) {
-        speechSynthesis.cancel()
-      }
-    }
+    return () => speechManager.stop()
   }, [article])
 
   const handleReadAloud = () => {
-    if (!speechSynthesis) {
+    if (!speechManager.isSupported) {
       alert('Text-to-speech is not supported in your browser')
       return
     }
-
     if (isReading) {
-      // Stop reading
-      speechSynthesis.cancel()
+      speechManager.stop()
       setIsReading(false)
     } else {
-      // Start reading
-      const textToRead = `${article.title}. ${article.description}`
-      const utterance = new SpeechSynthesisUtterance(textToRead)
-
-      // Configure speech settings
-      utterance.rate = 0.9
-      utterance.pitch = 1
-      utterance.volume = 1
-
-      // Event handlers
-      utterance.onstart = () => setIsReading(true)
-      utterance.onend = () => setIsReading(false)
-      utterance.onerror = () => setIsReading(false)
-
-      speechSynthesis.speak(utterance)
+      speechManager.speak(`${article.title}. ${article.description}`, {
+        rate: 0.9,
+        pitch: 1,
+        volume: 1,
+        onStart: () => setIsReading(true),
+        onEnd: () => setIsReading(false),
+        onError: () => setIsReading(false),
+      })
     }
   }
 
@@ -550,14 +564,19 @@ const NewsCard = ({
       if (vote === 'biased') biased += 1; else nonBiased += 1
       const updated = { biased, nonBiased, myVote: vote }
       try {
-        localStorage.setItem(`newsly_bias_votes_${btoa(articleId)}`,
-          JSON.stringify(updated))
+        localStorage.setItem(`newsly_bias_votes_${hashKey(articleId)}`, JSON.stringify(updated))
       } catch {}
       return updated
     })
   }
 
   const totalBiasVotes = (biasVotes?.biased || 0) + (biasVotes?.nonBiased || 0)
+
+  const enhancedBiasEnabled = localStorage.getItem('newsly_enhanced_bias') === 'true'
+
+  // Reading time estimate based on description word count
+  const wordCount = article?.description?.split(/\s+/).filter(Boolean).length || 0
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200))
 
   const analyzeBias = async () => {
     if (biasAnalysis && !showBiasAnalysis) { setShowBiasAnalysis(true); return }
@@ -595,7 +614,7 @@ const NewsCard = ({
       onMouseUp={onMouseUp}
       onMouseLeave={() => setIsDragging(false)}
       style={{
-        touchAction: 'pan-y',
+        touchAction: 'none',   // we handle swipes ourselves; prevents browser scroll hijack
         cursor: isDragging ? 'grabbing' : 'grab'
       }}
     >
@@ -669,12 +688,28 @@ const NewsCard = ({
 
       {/* Content Card at Bottom */}
       <div className="relative z-10 mt-auto bg-white dark:bg-gray-800 rounded-t-3xl max-h-[70%] flex flex-col">
-        <div className="flex-1 overflow-y-auto p-6">
+        <div
+          className="flex-1 overflow-y-auto p-6"
+          style={{ touchAction: 'pan-y' }}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
         {/* Source and Time */}
-        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-3 gap-2">
+        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-3 gap-2 flex-wrap">
           <span className="font-medium">{article.source?.name || 'Unknown'}</span>
           <span className="mx-1">·</span>
           <span>{formatTimeAgo(article.publishedAt)}</span>
+          <span className="flex items-center gap-1">
+            <Clock size={10} />
+            {readingTime} min read
+          </span>
+          {enhancedBiasEnabled && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+              <Shield size={10} />
+              Bias watch
+            </span>
+          )}
           {(() => {
             try {
               const host = new URL(article?.url || '').hostname.replace(/^www\./, '')

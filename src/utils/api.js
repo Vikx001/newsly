@@ -1,34 +1,14 @@
 import { CapacitorHttp } from '@capacitor/core'
-import { fetchGoogleNews, getCategoryUrlsForCountry } from './mockApi.js'
+import { fetchGoogleNews, getCategoryUrlsForCountry, getCountryParam, parseGoogleNewsXML } from './mockApi.js'
 
-// Enhanced image proxy function with multiple services
-const getProxiedImageUrl = (imageUrl) => {
-  if (!imageUrl) return null
-  
-  // For native platforms, try direct URL first
-  // for all the platforms they have to see if it is working or not 
-  if (window.Capacitor?.isNativePlatform()) {
-    return imageUrl
-  }
-  try {
-    const url = new URL(imageUrl)
-    
-    // Try different proxy services in order of reliability
-    const proxyServices = [
-      // Weserv (most reliable)
-      `https://images.weserv.nl/?url=${encodeURIComponent(imageUrl)}&w=400&h=300&fit=cover&a=attention`,
-      // ImageProxy
-      `https://imageproxy.pimg.tw/resize?url=${encodeURIComponent(imageUrl)}&width=400&height=300`,
-      // Statically
-      `https://cdn.statically.io/img/${url.hostname}${url.pathname}?w=400&h=300&f=auto`,
-      // Direct URL as last resort
-      imageUrl
-    ]
-    
-    return proxyServices[0] 
-  } catch {
-    return imageUrl
-  }
+// Try the Vercel serverless endpoint first (avoids third-party CORS proxies in production).
+// Falls back to the direct CORS-proxy chain when the endpoint is unreachable (e.g. plain Vite dev).
+const fetchFromServerless = async (categories, country) => {
+  const cp = getCountryParam(country)
+  const url = `/api/news?categories=${encodeURIComponent(categories.join(','))}&countryParam=${encodeURIComponent(cp)}`
+  const resp = await fetch(url)
+  if (!resp.ok) throw new Error(`Serverless API ${resp.status}`)
+  return resp.json()
 }
 
 export const fetchNews = async (categories, source = 'auto', country = 'global') => {
@@ -46,7 +26,6 @@ export const fetchNews = async (categories, source = 'auto', country = 'global')
         })
         
         if (response.data) {
-          const { parseGoogleNewsXML } = await import('./mockApi.js')
           const articles = parseGoogleNewsXML(response.data, category, country)
           allArticles.push(...articles)
         }
@@ -54,8 +33,12 @@ export const fetchNews = async (categories, source = 'auto', country = 'global')
       
       return { articles: allArticles }
     } else {
-      const data = await fetchGoogleNews(categories, country)
-      return data
+      // Web: try serverless endpoint first (production/vercel dev), fall back to CORS proxies
+      try {
+        return await fetchFromServerless(categories, country)
+      } catch {
+        return fetchGoogleNews(categories, country)
+      }
     }
   } catch (error) {
     console.error('API Error:', error)

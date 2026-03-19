@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { categories, source = 'google' } = req.query
+    const { categories, source = 'google', countryParam = 'hl=en-US&gl=US&ceid=US:en' } = req.query
     if (!categories) {
       res.status(400).json({ error: 'Categories parameter is required' })
       return
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     let allArticles = []
 
     // Always use Google News for now since it's free
-    allArticles = await fetchFromGoogleNews(categoryList)
+    allArticles = await fetchFromGoogleNews(categoryList, countryParam)
 
     // Remove duplicates and filter articles - no limit here
     const uniqueArticles = allArticles
@@ -54,16 +54,16 @@ export default async function handler(req, res) {
   }
 }
 
-async function fetchFromGoogleNews(categoryList) {
+async function fetchFromGoogleNews(categoryList, countryParam = 'hl=en-US&gl=US&ceid=US:en') {
   const categoryUrls = {
-    'technology': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'general': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'business': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'sports': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'science': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y0RvU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'health': 'https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US:en',
-    'entertainment': 'https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB?hl=en-US&gl=US&ceid=US:en',
-    'politics': 'https://news.google.com/rss/search?q=politics&hl=en-US&gl=US&ceid=US:en'
+    'technology': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'general':    `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'business':   `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6TVdZU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'sports':     `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'science':    `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y0RvU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'health':     `https://news.google.com/rss/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtVnVLQUFQAQ?${countryParam}`,
+    'entertainment': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
+    'politics':   `https://news.google.com/rss/search?q=politics&${countryParam}`,
   }
 
   const promises = categoryList.map(async (category) => {

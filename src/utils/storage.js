@@ -62,3 +62,14 @@ export const isBookmarked = (articleUrl) => {
   const bookmarks = getStoredBookmarks()
   return bookmarks.some(b => b.url === articleUrl)
 }
+
+// djb2-style hash — replaces btoa() for localStorage keys.
+// btoa is not collision-safe for long/similar URLs; this is deterministic and compact.
+export const hashKey = (str) => {
+  let hash = 5381
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
+    hash = hash >>> 0
+  }
+  return hash.toString(36)
+}

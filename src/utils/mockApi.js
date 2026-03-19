@@ -4,34 +4,28 @@ import countryList from 'react-select-country-list'
 
 // Mock API for development - fetches Google News RSS feeds directly from frontend
 
-export const getCategoryUrlsForCountry = (country) => {
-  // Dynamic country parameter generation using library
-  let countryParam
-
-  if (country === 'global') {
-    countryParam = 'hl=en-US&gl=US&ceid=US:en'
-  } else {
-    try {
-      const languages = countryLanguage.getCountryLanguages(country.toUpperCase())
-      const upperCountry = country.toUpperCase()
-
-      // Prefer English when it's an official language of the country (e.g. India,
-      // Nigeria, Singapore) — avoids alphabetical first-pick giving Bengali for IN,
-      // Afrikaans for ZA, etc.  Fall back to the first listed language otherwise.
-      const englishEntry = languages && languages.find(l => l.iso639_1 === 'en')
-      const primaryLang = englishEntry || (languages && languages[0]) || null
-
-      if (primaryLang && primaryLang.iso639_1) {
-        const langCode = `${primaryLang.iso639_1}-${upperCountry}`
-        countryParam = `hl=${langCode}&gl=${upperCountry}&ceid=${upperCountry}:${primaryLang.iso639_1}`
-      } else {
-        countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
-      }
-    } catch (error) {
-      const upperCountry = country.toUpperCase()
-      countryParam = `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
+// Build the Google News locale query string for a given country code.
+// Exported so serverless functions and the web client can reuse the same logic.
+export const getCountryParam = (country) => {
+  if (!country || country === 'global') return 'hl=en-US&gl=US&ceid=US:en'
+  try {
+    const languages = countryLanguage.getCountryLanguages(country.toUpperCase())
+    const upperCountry = country.toUpperCase()
+    const englishEntry = languages && languages.find(l => l.iso639_1 === 'en')
+    const primaryLang = englishEntry || (languages && languages[0]) || null
+    if (primaryLang && primaryLang.iso639_1) {
+      const langCode = `${primaryLang.iso639_1}-${upperCountry}`
+      return `hl=${langCode}&gl=${upperCountry}&ceid=${upperCountry}:${primaryLang.iso639_1}`
     }
+    return `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
+  } catch {
+    const upperCountry = country.toUpperCase()
+    return `hl=en-${upperCountry}&gl=${upperCountry}&ceid=${upperCountry}:en`
   }
+}
+
+export const getCategoryUrlsForCountry = (country) => {
+  const countryParam = getCountryParam(country)
 
   return {
     'technology': `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtVnVHZ0pWVXlnQVAB?${countryParam}`,
@@ -234,7 +228,7 @@ export const parseGoogleNewsXML = (xmlText, category, country = 'global') => {
       }
     })
 
-    return articles.filter(Boolean).slice(0, 10)
+    return articles.filter(Boolean)
   } catch (error) {
     console.error('Error parsing XML:', error)
     return []
