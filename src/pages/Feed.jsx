@@ -10,9 +10,13 @@ import {
   MoreHorizontal,
   Share,
   Search,
-  X
+  X,
+  User,
+  LogIn
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import { useAuth } from '../contexts/AuthContext'
+import AuthModal from '../components/AuthModal'
 import NewsCard from '../components/NewsCard'
 import CommentsCard from '../components/CommentsCard'
 import { fetchNews } from '../utils/api'
@@ -40,6 +44,9 @@ const Feed = () => {
   const [animReady, setAnimReady] = useState(false)
   const pendingIndexRef = useRef(null)
   const [showComments, setShowComments] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authModalMode, setAuthModalMode] = useState('login')
+  const { user } = useAuth()
   const [selectedArticle, setSelectedArticle] = useState(null)
   const { isDark, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -480,6 +487,23 @@ const Feed = () => {
                 <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
               </button>
 
+              {/* User / Login */}
+              <button
+                onClick={() => { setAuthModalMode(user ? 'login' : 'login'); setShowAuthModal(true) }}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors relative"
+                title={user ? user.displayName || user.email : 'Sign in'}
+              >
+                {user ? (
+                  <div className="w-[18px] h-[18px] rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center">
+                    <span className="text-white font-bold" style={{ fontSize: 9 }}>
+                      {(user.displayName || user.email || 'U')[0].toUpperCase()}
+                    </span>
+                  </div>
+                ) : (
+                  <LogIn size={18} />
+                )}
+              </button>
+
               {/* Settings */}
               <button
                 onClick={() => navigate('/settings')}
@@ -588,6 +612,7 @@ const Feed = () => {
                   onNext={handleNext}
                   onPrevious={handlePrevious}
                   onShowComments={handleShowComments}
+                  onAuthRequired={() => setShowAuthModal(true)}
                   showNavigation={true}
                   isFirst={currentIndex === 0}
                   isLast={currentIndex === filteredArticles.length - 1}
@@ -612,6 +637,7 @@ const Feed = () => {
                     onNext={handleNext}
                     onPrevious={handlePrevious}
                     onShowComments={handleShowComments}
+                    onAuthRequired={() => setShowAuthModal(true)}
                     showNavigation={true}
                     isFirst={pendingIndexRef.current === 0}
                     isLast={pendingIndexRef.current === filteredArticles.length - 1}
@@ -648,7 +674,13 @@ const Feed = () => {
         <CommentsCard
           article={selectedArticle}
           onClose={handleCloseComments}
+          onAuthRequired={() => { handleCloseComments(); setShowAuthModal(true) }}
         />
+      )}
+
+      {/* Auth modal — shown when unauthenticated action is attempted */}
+      {showAuthModal && (
+        <AuthModal onClose={() => setShowAuthModal(false)} defaultMode={authModalMode} />
       )}
     </div>
   )
