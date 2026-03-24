@@ -1,85 +1,98 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { ArrowLeft, Send, User, X, Check } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { ArrowLeft, Send, User, X, Check, LogIn } from 'lucide-react'
 import { hashKey } from '../utils/storage'
+import { useAuth } from '../contexts/AuthContext'
+import { api } from '../utils/apiClient'
 
 const MAX_COMMENT_LENGTH = 500
 
-const CommentsCard = ({ article, onClose }) => {
+const CommentsCard = ({ article, onClose, onAuthRequired }) => {
+  const { user } = useAuth()
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
-  const [userName, setUserName] = useState('')
-  const [likedComments, setLikedComments] = useState(new Set())
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  // Inline name-prompt state (replaces window.prompt)
-  const [askingName, setAskingName] = useState(false)
-  const [nameInput, setNameInput] = useState('')
-  const nameInputRef = useRef(null)
+  const articleHash = hashKey(article.url || article.title || '')
 
-  const articleKey = hashKey(article.url || article.title || '')
-
-  useEffect(() => {
-    const savedComments = localStorage.getItem(`newsly_comments_${articleKey}`)
-    if (savedComments) {
-      try { setComments(JSON.parse(savedComments)) } catch {}
-    }
-
-    const savedName = localStorage.getItem('newsly_user_name')
-    if (savedName) setUserName(savedName)
-
+  const fetchComments = useCallback(async () => {
+    setLoading(true)
     try {
-      const likedRaw = localStorage.getItem(`newsly_liked_${articleKey}`)
-      if (likedRaw) setLikedComments(new Set(JSON.parse(likedRaw)))
-    } catch {}
-  }, [articleKey])
-
-  // Auto-focus name input when it appears
-  useEffect(() => {
-    if (askingName) nameInputRef.current?.focus()
-  }, [askingName])
-
-  const saveComments = (updated) => {
-    localStorage.setItem(`newsly_comments_${articleKey}`, JSON.stringify(updated))
-    setComments(updated)
-  }
-
-  const submitComment = (text, author) => {
-    const comment = {
-      id: Date.now(),
-      text: text.trim().slice(0, MAX_COMMENT_LENGTH),
-      author,
-      timestamp: new Date().toISOString(),
-      likes: 0
+      if (user) {
+        const { comments: cloud } = await api.get(`/api/comments?articleHash=${articleHash}`)
+        setComments(cloud)
+      } else {
+        // Logged-out users see localStorage comments (legacy)
+        const saved = localStorage.getItem(`newsly_comments_${articleHash}`)
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved)
+            setComments(parsed.map((c, i) => ({
+              id: c.id || i,
+              displayName: c.author || 'Anonymous',
+              text: c.text,
+              timestamp: c.timestamp,
+              likes: c.likes || 0,
+              hasLiked: false,
+              isOwnComment: false,
+            })))
+          } catch {}
+        }
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setLoading(false)
     }
-    saveComments([comment, ...comments])
-    setNewComment('')
-  }
+  }, [articleHash, user])
 
-  const handleAddComment = () => {
+  useEffect(() => { fetchComments() }, [fetchComments])
+
+  const handleAddComment = async () => {
     if (!newComment.trim()) return
-    if (!userName) {
-      setAskingName(true)
-      return
-    }
-    submitComment(newComment, userName)
-  }
+    if (!user) { onAuthRequired?.(); return }
 
-  const handleNameConfirm = () => {
-    const finalName = nameInput.trim().slice(0, 30) || 'Anonymous'
-    setUserName(finalName)
-    localStorage.setItem('newsly_user_name', finalName)
-    setAskingName(false)
-    setNameInput('')
-    if (newComment.trim()) submitComment(newComment, finalName)
-  }
-
-  const handleLikeComment = (commentId) => {
-    if (likedComments.has(commentId)) return // each user can like only once
-    const newLiked = new Set([...likedComments, commentId])
-    setLikedComments(newLiked)
+    setSubmitting(true)
     try {
-      localStorage.setItem(`newsly_liked_${articleKey}`, JSON.stringify([...newLiked]))
+      const { comment } = await api.post('/api/comments', {
+        articleHash,
+        text: newComment.trim(),
+        displayName: user.displayName || 'Newsly Reader',
+      })
+      setComments(prev => [comment, ...prev])
+      setNewComment('')
+    } catch (err) {
+      // Silent — user can retry
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleLikeComment = async (commentId, hasLiked) => {
+    if (!user) { onAuthRequired?.(); return }
+    // Optimistic update
+    setComments(prev => prev.map(c =>
+      c.id === commentId
+        ? { ...c, likes: hasLiked ? Math.max(0, c.likes - 1) : c.likes + 1, hasLiked: !hasLiked }
+        : c
+    ))
+    try {
+      await api.post('/api/comment-like', { commentId })
+    } catch {
+      // Revert on failure
+      setComments(prev => prev.map(c =>
+        c.id === commentId
+          ? { ...c, likes: hasLiked ? c.likes + 1 : Math.max(0, c.likes - 1), hasLiked }
+          : c
+      ))
+    }
+  }
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await api.delete(`/api/comments?id=${commentId}`)
+      setComments(prev => prev.filter(c => c.id !== commentId))
     } catch {}
-    saveComments(comments.map(c => c.id === commentId ? { ...c, likes: c.likes + 1 } : c))
   }
 
   const formatTimeAgo = (dateString) => {
@@ -114,79 +127,64 @@ const CommentsCard = ({ article, onClose }) => {
           </div>
         </div>
 
-        {/* Inline name prompt (replaces window.prompt) */}
-        {askingName && (
-          <div className="px-6 py-3 border-b border-gray-100 dark:border-gray-700 flex-shrink-0 bg-blue-50 dark:bg-blue-900/20">
-            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">What should we call you?</p>
-            <div className="flex gap-2">
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value.slice(0, 30))}
-                placeholder="Your display name"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyDown={(e) => e.key === 'Enter' && handleNameConfirm()}
-                maxLength={30}
-              />
-              <button
-                onClick={handleNameConfirm}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Check size={16} />
-              </button>
-              <button
-                onClick={() => { setAskingName(false); setNameInput('') }}
-                className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
-              >
-                <X size={16} />
-              </button>
+        {/* Add Comment — only for logged-in users */}
+        {user ? (
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Commenting as <span className="font-medium text-gray-700 dark:text-gray-300">{user.displayName || 'Newsly Reader'}</span>
+            </p>
+            <div className="flex gap-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <User size={18} className="text-white" />
+              </div>
+              <div className="flex-1 flex flex-col gap-1">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
+                    placeholder="Add a comment..."
+                    className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
+                    maxLength={MAX_COMMENT_LENGTH}
+                    disabled={submitting}
+                  />
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim() || submitting}
+                    className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  >
+                    {submitting
+                      ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      : <Send size={18} />}
+                  </button>
+                </div>
+                {newComment.length > MAX_COMMENT_LENGTH * 0.8 && (
+                  <p className={`text-xs text-right ${newComment.length >= MAX_COMMENT_LENGTH ? 'text-red-500' : 'text-gray-400'}`}>
+                    {newComment.length}/{MAX_COMMENT_LENGTH}
+                  </p>
+                )}
+              </div>
             </div>
+          </div>
+        ) : (
+          <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+            <button
+              onClick={() => onAuthRequired?.()}
+              className="w-full py-3 rounded-xl bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-2"
+            >
+              <LogIn size={16} /> Sign in to comment
+            </button>
           </div>
         )}
 
-        {/* Add Comment */}
-        <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
-          {userName && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              Commenting as <span className="font-medium text-gray-700 dark:text-gray-300">{userName}</span>
-            </p>
-          )}
-          <div className="flex gap-3">
-            <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <User size={18} className="text-gray-500 dark:text-gray-400" />
-            </div>
-            <div className="flex-1 flex flex-col gap-1">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value.slice(0, MAX_COMMENT_LENGTH))}
-                  placeholder="Add a comment..."
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAddComment()}
-                  maxLength={MAX_COMMENT_LENGTH}
-                />
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-              {newComment.length > MAX_COMMENT_LENGTH * 0.8 && (
-                <p className={`text-xs text-right ${newComment.length >= MAX_COMMENT_LENGTH ? 'text-red-500' : 'text-gray-400'}`}>
-                  {newComment.length}/{MAX_COMMENT_LENGTH}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          {comments.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+            </div>
+          ) : comments.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
                 <User size={24} className="text-gray-400" />
@@ -204,23 +202,35 @@ const CommentsCard = ({ article, onClose }) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{comment.author}</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{comment.displayName}</span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">{formatTimeAgo(comment.timestamp)}</span>
+                        {comment.isOwnComment && (
+                          <span className="text-xs bg-blue-500/15 text-blue-500 px-1.5 py-0.5 rounded-full font-medium">you</span>
+                        )}
                       </div>
                       <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed mb-3">{comment.text}</p>
-                      <button
-                        onClick={() => handleLikeComment(comment.id)}
-                        disabled={likedComments.has(comment.id)}
-                        className={`flex items-center gap-1 text-xs transition-colors ${
-                          likedComments.has(comment.id)
-                            ? 'text-blue-600 dark:text-blue-400 cursor-default'
-                            : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
-                        }`}
-                      >
-                        <span>{likedComments.has(comment.id) ? '👍' : '👍'}</span>
-                        {comment.likes > 0 && <span>{comment.likes}</span>}
-                        <span className="ml-1">{likedComments.has(comment.id) ? 'Liked' : 'Like'}</span>
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleLikeComment(comment.id, comment.hasLiked)}
+                          className={`flex items-center gap-1 text-xs transition-colors ${
+                            comment.hasLiked
+                              ? 'text-blue-600 dark:text-blue-400 cursor-default'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
+                          }`}
+                        >
+                          <span>👍</span>
+                          {comment.likes > 0 && <span>{comment.likes}</span>}
+                          <span className="ml-0.5">{comment.hasLiked ? 'Liked' : 'Like'}</span>
+                        </button>
+                        {comment.isOwnComment && (
+                          <button
+                            onClick={() => handleDeleteComment(comment.id)}
+                            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

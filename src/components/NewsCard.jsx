@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { ExternalLink, Bookmark, BookmarkCheck, Share, MessageCircle, Languages, Shield, Clock } from 'lucide-react'
 import { useBookmarks } from '../contexts/BookmarkContext'
+import { useAuth } from '../contexts/AuthContext'
+import { api } from '../utils/apiClient'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
 import { CapacitorHttp } from '@capacitor/core'
@@ -28,9 +30,11 @@ const NewsCard = ({
   onShowComments,
   showNavigation = false,
   isFirst = false,
-  isLast = false
+  isLast = false,
+  onAuthRequired,
 }) => {
   const { isBookmarked, addBookmark, removeBookmark } = useBookmarks()
+  const { user } = useAuth()
   const [comments, setComments] = useState([])
   const [isTranslating, setIsTranslating] = useState(false)
   const [translatedContent, setTranslatedContent] = useState(null)
@@ -42,13 +46,15 @@ const NewsCard = ({
   // Community bias voting state
   const [showBiasVote, setShowBiasVote] = useState(false)
   const [animateBiasModal, setAnimateBiasModal] = useState(false)
-  const [biasVotes, setBiasVotes] = useState({ biased: 0, nonBiased: 0, myVote: null })
+  const [biasVotes, setBiasVotes] = useState({ biased: 0, notBiased: 0, myVote: null })
 
 
 
   // Load comments count and reaction for display
   useEffect(() => {
     const articleId = article.url || article.title
+    const articleHash = hashKey(articleId)
+
     const savedComments = localStorage.getItem(`newsly_comments_${btoa(articleId)}`)
     if (savedComments) {
       setComments(JSON.parse(savedComments))
@@ -59,17 +65,23 @@ const NewsCard = ({
     setShowOriginal(true)
     setIsTranslating(false)
 
-    // Load bias votes for this article
-    try {
-      const votesRaw = localStorage.getItem(`newsly_bias_votes_${hashKey(articleId)}`)
-      if (votesRaw) {
-        const parsed = JSON.parse(votesRaw)
-        setBiasVotes({ biased: parsed.biased || 0, nonBiased: parsed.nonBiased || 0, myVote: parsed.myVote || null })
-      } else {
-        setBiasVotes({ biased: 0, nonBiased: 0, myVote: null })
+    // Load bias votes from cloud (or localStorage fallback)
+    if (user) {
+      api.get(`/api/bias-votes?articleHash=${articleHash}`)
+        .then(data => setBiasVotes({ biased: data.biased || 0, notBiased: data.notBiased || 0, myVote: data.myVote || null }))
+        .catch(() => setBiasVotes({ biased: 0, notBiased: 0, myVote: null }))
+    } else {
+      try {
+        const votesRaw = localStorage.getItem(`newsly_bias_votes_${articleHash}`)
+        if (votesRaw) {
+          const parsed = JSON.parse(votesRaw)
+          setBiasVotes({ biased: parsed.biased || 0, notBiased: parsed.nonBiased || parsed.notBiased || 0, myVote: parsed.myVote || null })
+        } else {
+          setBiasVotes({ biased: 0, notBiased: 0, myVote: null })
+        }
+      } catch {
+        setBiasVotes({ biased: 0, notBiased: 0, myVote: null })
       }
-    } catch {
-      setBiasVotes({ biased: 0, nonBiased: 0, myVote: null })
     }
 
     // Auto-run bias analysis when Enhanced Bias Analysis is enabled
@@ -554,23 +566,39 @@ const NewsCard = ({
     setAnimateBiasModal(false)
     setTimeout(() => setShowBiasVote(false), 180)
   }
-  const handleBiasVote = (vote) => {
+  const handleBiasVote = async (vote) => {
     const articleId = article.url || article.title
+    const articleHash = hashKey(articleId)
+
+    if (!user) { onAuthRequired?.(); closeBiasVoteModal(); return }
+    if (biasVotes.myVote === vote) return // already voted this way
+
+    // Optimistic update
     setBiasVotes(prev => {
-      let { biased, nonBiased, myVote } = prev || { biased: 0, nonBiased: 0, myVote: null }
-      if (myVote === vote) return prev
+      let { biased, notBiased, myVote } = prev
       if (myVote === 'biased') biased = Math.max(0, biased - 1)
-      if (myVote === 'nonBiased') nonBiased = Math.max(0, nonBiased - 1)
-      if (vote === 'biased') biased += 1; else nonBiased += 1
-      const updated = { biased, nonBiased, myVote: vote }
-      try {
-        localStorage.setItem(`newsly_bias_votes_${hashKey(articleId)}`, JSON.stringify(updated))
-      } catch {}
-      return updated
+      if (myVote === 'not_biased') notBiased = Math.max(0, notBiased - 1)
+      if (vote === 'biased') biased += 1; else notBiased += 1
+      return { biased, notBiased, myVote: vote }
     })
+
+    closeBiasVoteModal()
+
+    try {
+      const data = await api.post('/api/bias-votes', { articleHash, vote })
+      setBiasVotes({ biased: data.biased || 0, notBiased: data.notBiased || 0, myVote: data.myVote })
+    } catch {
+      // Revert on failure
+      setBiasVotes(prev => {
+        let { biased, notBiased, myVote: current } = prev
+        if (current === 'biased') biased = Math.max(0, biased - 1)
+        if (current === 'not_biased') notBiased = Math.max(0, notBiased - 1)
+        return { biased, notBiased, myVote: null }
+      })
+    }
   }
 
-  const totalBiasVotes = (biasVotes?.biased || 0) + (biasVotes?.nonBiased || 0)
+  const totalBiasVotes = (biasVotes?.biased || 0) + (biasVotes?.notBiased || 0)
 
   const enhancedBiasEnabled = localStorage.getItem('newsly_enhanced_bias') === 'true'
 
@@ -849,7 +877,7 @@ const NewsCard = ({
 
             <div className="p-4">
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => handleBiasVote('nonBiased')} className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${biasVotes.myVote === 'nonBiased' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                <button onClick={() => handleBiasVote('not_biased')} className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${biasVotes.myVote === 'not_biased' ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
                   Non-biased
                 </button>
                 <button onClick={() => handleBiasVote('biased')} className={`rounded-xl border px-4 py-3 text-sm font-medium transition ${biasVotes.myVote === 'biased' ? 'border-red-500 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
@@ -860,12 +888,12 @@ const NewsCard = ({
               <div className="mt-4">
                 <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
                   <span>Community bias</span>
-                  <span>{computeBiasPct(biasVotes.biased, biasVotes.nonBiased) !== null ? `${computeBiasPct(biasVotes.biased, biasVotes.nonBiased)}% biased` : 'No votes yet'}</span>
+                  <span>{computeBiasPct(biasVotes.biased, biasVotes.notBiased) !== null ? `${computeBiasPct(biasVotes.biased, biasVotes.notBiased)}% biased` : 'No votes yet'}</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-                  <div className="h-2 bg-red-500" style={{ width: `${computeBiasPct(biasVotes.biased, biasVotes.nonBiased) ?? 0}%` }}></div>
+                  <div className="h-2 bg-red-500" style={{ width: `${computeBiasPct(biasVotes.biased, biasVotes.notBiased) ?? 0}%` }}></div>
                 </div>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">Based on {(Number(biasVotes.biased || 0) + Number(biasVotes.nonBiased || 0))} vote{(Number(biasVotes.biased || 0) + Number(biasVotes.nonBiased || 0)) === 1 ? '' : 's'}.</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">Based on {(Number(biasVotes.biased || 0) + Number(biasVotes.notBiased || 0))} vote{(Number(biasVotes.biased || 0) + Number(biasVotes.notBiased || 0)) === 1 ? '' : 's'}.</p>
               </div>
 
               {/* AI Bias Analysis */}

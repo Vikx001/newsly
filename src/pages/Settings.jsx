@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
+import { useAuth } from '../contexts/AuthContext'
+import AuthModal from '../components/AuthModal'
 import {
   ArrowLeft, Type, Sun, Moon, Bell, Bookmark, CreditCard,
   Clock, MessageSquare, HelpCircle, ChevronRight, LogOut,
-  Check, X, Shield, Eye, SortAsc, Sparkles
+  Check, X, Shield, Eye, SortAsc, Sparkles, LogIn, UserPlus, User
 } from 'lucide-react'
 import { getHidePaywalled, setHidePaywalled, getStoredSortMode, setStoredSortMode } from '../utils/storage'
+import { api } from '../utils/apiClient'
 
 // Reusable toggle pill
 const Toggle = ({ value, onToggle, isDark }) => (
@@ -21,10 +24,13 @@ const Toggle = ({ value, onToggle, isDark }) => (
 const Settings = () => {
   const navigate = useNavigate()
   const { isDark, toggleTheme } = useTheme()
+  const { user, signOut } = useAuth()
   const [notifications, setNotifications] = useState(true)
   const [fontSize, setFontSize] = useState('medium')
   const [enhancedBias, setEnhancedBias] = useState(false)
   const [showModal, setShowModal] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authModalMode, setAuthModalMode] = useState('login')
   const [hidePaywalled, setHidePaywalledState] = useState(getHidePaywalled())
   const [sortMode, setSortMode] = useState(getStoredSortMode())
 
@@ -44,14 +50,17 @@ const Settings = () => {
   const handleNotificationToggle = () => {
     const v = !notifications; setNotifications(v)
     localStorage.setItem('newsly_notifications', JSON.stringify(v))
+    if (user) api.put('/api/preferences', { notifications: v }).catch(() => {})
   }
   const handleFontSizeChange = (size) => {
     setFontSize(size); localStorage.setItem('newsly_font_size', size)
     document.documentElement.style.fontSize = size === 'small' ? '14px' : size === 'large' ? '18px' : '16px'
+    if (user) api.put('/api/preferences', { font_size: size }).catch(() => {})
   }
   const handleEnhancedBiasToggle = () => {
     const v = !enhancedBias; setEnhancedBias(v)
     localStorage.setItem('newsly_enhanced_bias', JSON.stringify(v))
+    if (user) api.put('/api/preferences', { enhanced_bias: v }).catch(() => {})
   }
 
   const bg = isDark ? 'bg-gray-950' : 'bg-gray-50'
@@ -158,10 +167,22 @@ const Settings = () => {
       confirmLogout: (
         <>
           <p className={`text-base font-bold mb-2 ${text}`}>Log Out?</p>
-          <p className={`text-sm mb-4 ${sub}`}>All local data and preferences will be cleared.</p>
+          <p className={`text-sm mb-4 ${sub}`}>
+            {user
+              ? 'Your data is safely stored in the cloud. You can sign back in anytime.'
+              : 'All local data and preferences will be cleared.'}
+          </p>
           <div className="flex gap-2">
             <button onClick={onClose} className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border ${isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-600'}`}>Cancel</button>
-            <button onClick={() => { localStorage.clear(); onClose(); navigate('/') }}
+            <button onClick={() => {
+              if (user) {
+                signOut()
+              } else {
+                localStorage.clear()
+              }
+              onClose()
+              navigate('/')
+            }}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-500 text-white">Log Out</button>
           </div>
         </>
@@ -192,18 +213,46 @@ const Settings = () => {
       </header>
 
       {/* Profile strip */}
-      <div className={`mx-4 mb-6 rounded-2xl border p-4 flex items-center gap-4 ${card}`}>
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center flex-shrink-0">
-          <Sparkles size={22} className="text-white" />
+      {user ? (
+        <div className={`mx-4 mb-6 rounded-2xl border p-4 flex items-center gap-4 ${card}`}>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+            <User size={22} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-bold truncate ${text}`}>{user.displayName || 'Newsly Reader'}</p>
+            <p className={`text-xs truncate ${sub}`}>{user.email}</p>
+          </div>
+          <div className="ml-auto flex-shrink-0">
+            <span className="text-xs bg-blue-500/15 text-blue-500 px-2.5 py-1 rounded-full font-semibold">Free</span>
+          </div>
         </div>
-        <div>
-          <p className={`text-sm font-bold ${text}`}>Newsly Reader</p>
-          <p className={`text-xs ${sub}`}>Free plan · Personalized feed</p>
+      ) : (
+        <div className={`mx-4 mb-6 rounded-2xl border p-4 ${card}`}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={18} className="text-white" />
+            </div>
+            <div>
+              <p className={`text-sm font-bold ${text}`}>Sign in to sync your data</p>
+              <p className={`text-xs ${sub}`}>Bookmarks, comments &amp; preferences across devices</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setAuthModalMode('login'); setShowAuthModal(true) }}
+              className="flex-1 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold flex items-center justify-center gap-1.5"
+            >
+              <LogIn size={14} /> Sign In
+            </button>
+            <button
+              onClick={() => { setAuthModalMode('signup'); setShowAuthModal(true) }}
+              className={`flex-1 py-2 rounded-xl text-sm font-semibold border flex items-center justify-center gap-1.5 ${isDark ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'}`}
+            >
+              <UserPlus size={14} /> Sign Up
+            </button>
+          </div>
         </div>
-        <div className="ml-auto">
-          <span className="text-xs bg-blue-500/15 text-blue-500 px-2.5 py-1 rounded-full font-semibold">Free</span>
-        </div>
-      </div>
+      )}
 
       <div className="pb-10">
         {/* Appearance */}
@@ -345,6 +394,12 @@ const Settings = () => {
       </div>
 
       <Modal type={showModal} onClose={() => setShowModal(null)} />
+      {showAuthModal && (
+        <AuthModal
+          defaultMode={authModalMode}
+          onClose={() => setShowAuthModal(false)}
+        />
+      )}
     </div>
   )
 }
