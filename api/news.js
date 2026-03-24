@@ -115,15 +115,22 @@ async function parseGoogleNewsXML(xmlText, category) {
       // Images are resolved client-side; server returns null for urlToImage
       let imageUrl = null
 
-      // Clean description and remove HTML
-      const cleanDesc = description.replace(/<[^>]*>/g, '').trim()
+      // Decode HTML entities first, then strip any remaining HTML tags
+      const decoded = description
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+      const cleanDesc = decoded.replace(/<[^>]*>/g, '').trim()
       
       // Skip if title contains unwanted content
       if (title.includes('[Removed]') || title.includes('...')) continue
+
+      // Skip articles whose description is empty or is just a URL after cleaning
+      if (!cleanDesc || cleanDesc.startsWith('http')) continue
       
       articles.push({
         title: title,
-        description: cleanDesc.substring(0, 150) + (cleanDesc.length > 150 ? '...' : ''),
+        description: cleanDesc.substring(0, 200) + (cleanDesc.length > 200 ? '...' : ''),
         url: linkMatch[1],
         urlToImage: imageUrl,
         publishedAt: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
