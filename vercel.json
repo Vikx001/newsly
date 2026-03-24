@@ -1,10 +1,14 @@
 {
   "functions": {
-    "api/news.js": {
-      "maxDuration": 10
-    }
-  },
-  "env": {
-    "NEWS_API_KEY": "@news-api-key"
+    "api/news.js":             { "maxDuration": 10 },
+    "api/auth/signup.js":      { "maxDuration": 10 },
+    "api/auth/login.js":       { "maxDuration": 10 },
+    "api/auth/refresh.js":     { "maxDuration": 10 },
+    "api/bookmarks.js":        { "maxDuration": 10 },
+    "api/preferences.js":      { "maxDuration": 10 },
+    "api/comments.js":         { "maxDuration": 10 },
+    "api/comment-like.js":     { "maxDuration": 10 },
+    "api/bias-votes.js":       { "maxDuration": 10 },
+    "api/ai/bias-analysis.js": { "maxDuration": 10 }
   }
 }
