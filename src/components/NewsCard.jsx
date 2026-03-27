@@ -866,7 +866,7 @@ const NewsCard = ({
 
         {/* More like this + read/unread */}
         {moreLikeThis && moreLikeThis.length > 0 && (
-          <div className="shrink-0 px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-3xl">
+          <div className="shrink-0 px-4 py-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-3xl">
             <div className="flex items-center justify-between gap-2 min-w-0">
               <button
                 onClick={() => setShowMoreLikeThis(prev => !prev)}
@@ -886,12 +886,12 @@ const NewsCard = ({
             </div>
 
             {showMoreLikeThis && (
-              <div className="mt-2 grid gap-2">
+              <div className="mt-3 grid gap-2">
                 {moreLikeThis.map((item) => (
                   <button
                     key={item.url || item.title}
                     onClick={() => onSelectArticle?.(item)}
-                    className="text-left w-full text-xs p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="text-left w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
                     <div className="font-medium text-gray-800 dark:text-gray-100 truncate">{item.title}</div>
                     <div className="text-gray-500 dark:text-gray-400 truncate">{item.source?.name || 'Unknown source'}</div>
