@@ -891,7 +891,7 @@ const NewsCard = ({
                   <button
                     key={item.url || item.title}
                     onClick={() => onSelectArticle?.(item)}
-                    className="text-left w-full text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="text-left w-full box-border text-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors overflow-hidden"
                   >
                     <div className="font-medium text-gray-800 dark:text-gray-100 truncate">{item.title}</div>
                     <div className="text-gray-500 dark:text-gray-400 truncate">{item.source?.name || 'Unknown source'}</div>
