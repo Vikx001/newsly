@@ -826,14 +826,6 @@ const NewsCard = ({
 
           <div className="flex items-center gap-3">
             <button
-              onClick={onToggleRead}
-              className="text-xs font-medium px-2 py-1 border rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title={isRead ? 'Mark as unread' : 'Mark as read'}
-            >
-              {isRead ? 'Mark unread' : 'Mark read'}
-            </button>
-
-            <button
               onClick={handleTranslate}
               disabled={isTranslating}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
@@ -872,16 +864,26 @@ const NewsCard = ({
           </div>
         </div>
 
-        {/* More like this */}
+        {/* More like this + read/unread */}
         {moreLikeThis && moreLikeThis.length > 0 && (
           <div className="shrink-0 px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <button
-              onClick={() => setShowMoreLikeThis(prev => !prev)}
-              className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              {showMoreLikeThis ? 'Hide' : 'More like this'}
-              <span className="ml-1">({moreLikeThis.length})</span>
-            </button>
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowMoreLikeThis(prev => !prev)}
+                className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {showMoreLikeThis ? 'Hide' : 'More like this'}
+                <span className="ml-1">({moreLikeThis.length})</span>
+              </button>
+
+              <button
+                onClick={onToggleRead}
+                className="text-xs font-medium px-2 py-1 border rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title={isRead ? 'Mark as unread' : 'Mark as read'}
+              >
+                {isRead ? 'Mark unread' : 'Mark read'}
+              </button>
+            </div>
 
             {showMoreLikeThis && (
               <div className="mt-2 grid gap-2">
