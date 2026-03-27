@@ -24,6 +24,7 @@
     "@capacitor/haptics": "^5.0.6",
     "@capacitor/keyboard": "^5.0.6",
     "@capacitor/status-bar": "^5.0.6",
+    "@supabase/supabase-js": "^2.100.0",
     "axios": "^1.6.2",
     "country-language": "^0.1.7",
     "fast-xml-parser": "^4.3.2",

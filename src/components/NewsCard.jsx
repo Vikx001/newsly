@@ -867,7 +867,7 @@ const NewsCard = ({
         {/* More like this + read/unread */}
         {moreLikeThis && moreLikeThis.length > 0 && (
           <div className="shrink-0 px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <button
                 onClick={() => setShowMoreLikeThis(prev => !prev)}
                 className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -878,7 +878,7 @@ const NewsCard = ({
 
               <button
                 onClick={onToggleRead}
-                className="text-xs font-medium px-2 py-1 border rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="text-xs font-medium px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 title={isRead ? 'Mark as unread' : 'Mark as read'}
               >
                 {isRead ? 'Mark unread' : 'Mark read'}
