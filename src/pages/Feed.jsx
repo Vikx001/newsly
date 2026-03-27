@@ -42,6 +42,67 @@ const Feed = () => {
   const [animating, setAnimating] = useState(false)
   const [animDir, setAnimDir] = useState(null)   // 'up' | 'down'
   const [animReady, setAnimReady] = useState(false)
+
+  // Read/Unread tracking in localStorage
+  const [readStatus, setReadStatus] = useState({})
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('newsly_read_status')
+      if (stored) setReadStatus(JSON.parse(stored) || {})
+    } catch {
+      setReadStatus({})
+    }
+  }, [])
+
+  const persistReadStatus = (next) => {
+    setReadStatus(next)
+    try {
+      localStorage.setItem('newsly_read_status', JSON.stringify(next))
+    } catch {
+      // ignore localStorage errors
+    }
+  }
+
+  const getArticleKey = (article) => article?.url || article?.title || ''
+  const isArticleRead = (article) => {
+    const key = getArticleKey(article)
+    return key ? Boolean(readStatus[key]) : false
+  }
+
+  const toggleReadStatus = (article) => {
+    if (!article) return
+    const key = getArticleKey(article)
+    if (!key) return
+    const next = { ...readStatus, [key]: !readStatus[key] }
+    persistReadStatus(next)
+  }
+
+  const getMoreLikeThis = (activeIndex, count = 3) => {
+    const current = filteredArticles[activeIndex]
+    if (!current) return []
+
+    const sourceMatches = filteredArticles.filter((item, idx) => idx !== activeIndex && item.source?.name === current.source?.name)
+    const categoryMatches = filteredArticles.filter((item, idx) => idx !== activeIndex && item.category === current.category)
+
+    const result = [...sourceMatches, ...categoryMatches]
+      .filter((item, index, self) => self.indexOf(item) === index)
+      .slice(0, count)
+
+    if (result.length >= count) return result
+
+    const filler = filteredArticles
+      .filter((item, idx) => idx !== activeIndex && !result.includes(item))
+      .slice(0, count - result.length)
+
+    return [...result, ...filler]
+  }
+
+  const handleSelectArticle = (article) => {
+    if (!article?.url) return
+    const idx = filteredArticles.findIndex(a => a.url === article.url)
+    if (idx >= 0) setCurrentIndex(idx)
+  }
   const pendingIndexRef = useRef(null)
   const [showComments, setShowComments] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
@@ -616,6 +677,10 @@ const Feed = () => {
                   showNavigation={true}
                   isFirst={currentIndex === 0}
                   isLast={currentIndex === filteredArticles.length - 1}
+                  isRead={isArticleRead(filteredArticles[currentIndex])}
+                  onToggleRead={() => toggleReadStatus(filteredArticles[currentIndex])}
+                  moreLikeThis={getMoreLikeThis(currentIndex)}
+                  onSelectArticle={handleSelectArticle}
                 />
               </div>
 
@@ -641,6 +706,10 @@ const Feed = () => {
                     showNavigation={true}
                     isFirst={pendingIndexRef.current === 0}
                     isLast={pendingIndexRef.current === filteredArticles.length - 1}
+                    isRead={isArticleRead(filteredArticles[pendingIndexRef.current])}
+                    onToggleRead={() => toggleReadStatus(filteredArticles[pendingIndexRef.current])}
+                    moreLikeThis={getMoreLikeThis(pendingIndexRef.current)}
+                    onSelectArticle={handleSelectArticle}
                   />
                 </div>
               )}

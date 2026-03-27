@@ -32,6 +32,10 @@ const NewsCard = ({
   isFirst = false,
   isLast = false,
   onAuthRequired,
+  isRead = false,
+  onToggleRead,
+  moreLikeThis = [],
+  onSelectArticle,
 }) => {
   const { isBookmarked, addBookmark, removeBookmark } = useBookmarks()
   const { user } = useAuth()
@@ -129,6 +133,7 @@ const NewsCard = ({
   const [resolvedImage, setResolvedImage] = useState(null)
   const [resolvingImage, setResolvingImage] = useState(false)
   const [imageCredit, setImageCredit] = useState(null)
+  const [showMoreLikeThis, setShowMoreLikeThis] = useState(false)
 
 
 
@@ -732,6 +737,11 @@ const NewsCard = ({
             <Clock size={10} />
             {readingTime} min read
           </span>
+          {isRead && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200 text-xs">
+              Read
+            </span>
+          )}
           {enhancedBiasEnabled && (
             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
               <Shield size={10} />
@@ -816,6 +826,14 @@ const NewsCard = ({
 
           <div className="flex items-center gap-3">
             <button
+              onClick={onToggleRead}
+              className="text-xs font-medium px-2 py-1 border rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title={isRead ? 'Mark as unread' : 'Mark as read'}
+            >
+              {isRead ? 'Mark unread' : 'Mark read'}
+            </button>
+
+            <button
               onClick={handleTranslate}
               disabled={isTranslating}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
@@ -853,6 +871,34 @@ const NewsCard = ({
             </button>
           </div>
         </div>
+
+        {/* More like this */}
+        {moreLikeThis && moreLikeThis.length > 0 && (
+          <div className="shrink-0 px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <button
+              onClick={() => setShowMoreLikeThis(prev => !prev)}
+              className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              {showMoreLikeThis ? 'Hide' : 'More like this'}
+              <span className="ml-1">({moreLikeThis.length})</span>
+            </button>
+
+            {showMoreLikeThis && (
+              <div className="mt-2 grid gap-2">
+                {moreLikeThis.map((item) => (
+                  <button
+                    key={item.url || item.title}
+                    onClick={() => onSelectArticle?.(item)}
+                    className="text-left text-xs p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <div className="font-medium text-gray-800 dark:text-gray-100 truncate">{item.title}</div>
+                    <div className="text-gray-500 dark:text-gray-400 truncate">{item.source?.name || 'Unknown source'}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bias Vote Modal */}
