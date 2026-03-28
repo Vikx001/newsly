@@ -67,6 +67,7 @@ A React-based cross-platform news app that delivers ultra-short (≈60-word) new
 - **Notifications**: On/off toggle
 - **Account**: Bookmarks, Subscriptions (stub), Clear History, Feedback, Help & Support
 - **Danger Zone**: Log out (clears localStorage)
+- **New small tweak**: added quick README edit for immediate commit test
 
 ## 📅 Development Timeline
 
